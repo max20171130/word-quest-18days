@@ -377,10 +377,12 @@ const WORDS = [{"day":1,"theme":"高频动词（日常动作/沟通类）","word
   }
 
   /* ---------------- LESSON SCREEN ---------------- */
-  function makeQuestion(word, pool) {
-    const types = ["mc_meaning", "mc_word", "listen", "spell", "sentence"];
-    // sentence type only valid if word.en has marker (always true here)
-    const type = types[Math.floor(Math.random() * types.length)];
+  function makeQuestion(word, pool, forceType) {
+    // Weighted so real recall (spelling) is the most common question type —
+    // multiple-choice alone let kids clear a level by pattern-guessing
+    // without ever producing the word themselves.
+    const weightedTypes = ["spell", "spell", "spell", "mc_meaning", "mc_meaning", "mc_word", "listen", "sentence"];
+    const type = forceType || weightedTypes[Math.floor(Math.random() * weightedTypes.length)];
     const distractPool = pool.filter(w => w.word !== word.word);
 
     if (type === "mc_meaning") {
@@ -405,7 +407,7 @@ const WORDS = [{"day":1,"theme":"高频动词（日常动作/沟通类）","word
     const pool = buildLessonPool(level);
     const questions = pool.map(w => makeQuestion(w, pool));
     lessonState = {
-      level, questions, idx: 0, hearts: 5, correctCount: 0,
+      level, questions, pool, idx: 0, hearts: 5, correctCount: 0,
       misses: [], answered: false, selected: null
     };
     go("lesson");
@@ -564,6 +566,15 @@ const WORDS = [{"day":1,"theme":"高频动词（日常动作/沟通类）","word
     } else {
       ls.hearts--;
       ls.misses.push(q.word);
+      // Force this word to reappear later as a spelling question — guessing
+      // wrong on a multiple-choice question no longer just costs a heart,
+      // it has to be correctly recalled from scratch before the lesson ends.
+      if (ls.pool && ls.pool.length) {
+        const retryQ = makeQuestion(q.word, ls.pool, "spell");
+        const insertOffset = 3 + Math.floor(Math.random() * 4); // 3-6 questions later
+        const insertAt = Math.min(ls.idx + insertOffset, ls.questions.length);
+        ls.questions.splice(insertAt, 0, retryQ);
+      }
     }
     showFeedback(q, correct);
   }
@@ -603,7 +614,10 @@ const WORDS = [{"day":1,"theme":"高频动词（日常动作/沟通类）","word
 
   function finishLesson(completed) {
     const ls = lessonState;
-    const total = ls.questions.length;
+    // Use questions actually answered, not ls.questions.length — that array
+    // keeps growing as missed words get requeued, so on an early failure it
+    // would include not-yet-seen questions and inflate the denominator.
+    const total = ls.correctCount + ls.misses.length;
     const acc = total ? ls.correctCount / total : 0;
     let stars = 0;
     if (completed) {
@@ -673,9 +687,9 @@ const WORDS = [{"day":1,"theme":"高频动词（日常动作/沟通类）","word
         const uniqueMisses = [];
         const seen = new Set();
         s.misses.forEach(w => { if (!seen.has(w.word)) { seen.add(w.word); uniqueMisses.push(w); } });
-        const pool = uniqueMisses;
-        const questions = pool.map(w => makeQuestion(w, pool.length >= 4 ? pool : WORDS_BY_DAY[lessonState.level.type==='learn'?lessonState.level.id:1]));
-        lessonState = { level: lessonState.level, questions, idx: 0, hearts: 5, correctCount: 0, misses: [], answered: false, selected: null };
+        const distractSource = uniqueMisses.length >= 4 ? uniqueMisses : WORDS_BY_DAY[lessonState.level.type==='learn'?lessonState.level.id:1];
+        const questions = uniqueMisses.map(w => makeQuestion(w, distractSource));
+        lessonState = { level: lessonState.level, questions, pool: distractSource, idx: 0, hearts: 5, correctCount: 0, misses: [], answered: false, selected: null };
         go("lesson");
       });
       actions.appendChild(retryMissBtn);
