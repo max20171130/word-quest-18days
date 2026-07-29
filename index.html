@@ -171,6 +171,46 @@
     background: var(--card); color: var(--primary-dark); border: 2px solid var(--primary);
   }
 
+  /* ---------- Study screen (learn before test) ---------- */
+  .study-wrap { flex: 1; display: flex; flex-direction: column; padding: 12px 16px 24px; }
+  .study-topbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+  .study-progress-text { font-size: 13px; color: var(--text-dim); font-weight: 700; }
+  .study-mode-badge { font-size: 12px; font-weight: 700; color: #fff; background: var(--primary); padding: 4px 10px; border-radius: 999px; }
+  .study-mode-badge.recall { background: var(--gold); }
+  .study-card {
+    flex: 1; min-height: 260px; background: var(--card); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 26px 20px; margin-bottom: 16px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+    cursor: pointer;
+  }
+  .study-flip-hint { font-size: 12px; color: var(--text-dim); margin-bottom: 12px; }
+  .study-word { font-size: 34px; font-weight: 800; color: var(--primary-dark); }
+  .study-pos { font-size: 13px; color: var(--text-dim); margin-top: 6px; }
+  .study-ipa { font-size: 17px; color: var(--text-dim); font-style: italic; margin-top: 4px; }
+  .study-cn { font-size: 28px; font-weight: 800; margin-bottom: 14px; }
+  .study-sentence { font-size: 16px; line-height: 1.7; }
+  .study-sentence b { color: var(--primary-dark); }
+  .study-sentence .blank { color: var(--primary-dark); font-weight: 800; }
+  .study-sentence-zh { font-size: 13px; color: var(--text-dim); margin-top: 8px; }
+  .study-card .speak-btn { margin-top: 16px; }
+  .study-nav { display: flex; align-items: center; gap: 10px; }
+  .study-nav .btn-secondary, .study-nav .btn-primary { flex: 1; margin: 0; }
+  .study-nav .nav-icon-btn {
+    width: 48px; height: 48px; flex: none; border-radius: 14px; border: 2px solid #E1E6EE;
+    background: var(--card); font-size: 18px; color: var(--text-dim);
+  }
+  .study-nav .nav-icon-btn:disabled { opacity: .35; }
+
+  .recall-card {
+    flex: 1; min-height: 260px; background: var(--card); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 26px 20px; margin-bottom: 16px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+  }
+  .recall-hint { font-size: 14px; color: var(--text-dim); margin-top: 14px; }
+  .recall-mark-row { display: flex; gap: 10px; }
+  .recall-mark-row button { flex: 1; margin: 0; }
+  .recall-known-btn { background: var(--success) !important; box-shadow: 0 4px 0 #17824B !important; }
+
   .hidden { display: none !important; }
 
   .streak-toast {
@@ -221,8 +261,10 @@ const WORDS = [{"day":1,"theme":"高频动词（日常动作/沟通类）","word
     xp: 0,
     streak: 0,
     lastPlayedDate: null,
-    completed: {} // { levelId: { stars, bestScore } }
+    completed: {}, // { levelId: { stars, bestScore } }
+    studied: {}    // { levelId: true } — has this day's word list been studied at least once
   };
+  if (!state.studied) state.studied = {}; // backward-compat with saves from before this field existed
 
   /* ================= word pools ================= */
   const WORDS_BY_DAY = {};
@@ -273,8 +315,9 @@ const WORDS = [{"day":1,"theme":"高频动词（日常动作/沟通类）","word
 
   /* ================= app state machine ================= */
   const app = document.getElementById("app");
-  let screen = "map"; // map | lesson | summary
+  let screen = "map"; // map | study | lesson | summary
   let lessonState = null;
+  let studyState = null;
 
   function go(newScreen) { screen = newScreen; render(); }
 
@@ -339,20 +382,33 @@ const WORDS = [{"day":1,"theme":"高频动词（日常动作/沟通类）","word
       const unlocked = isUnlocked(lv.id);
       const completedInfo = state.completed[lv.id];
 
+      const needsStudy = lv.type === "learn" && !state.studied[lv.id];
       const node = document.createElement("button");
       node.className = "node" + (unlocked ? (lv.type === "review" ? " review" : "") : " locked");
-      const dayIcon = lv.type === "review" ? "🏆" : "📘";
+      const dayIcon = lv.type === "review" ? "🏆" : (needsStudy ? "📖" : "📘");
       node.innerHTML =
         '<div class="daylabel">' + (unlocked ? dayIcon : "🔒") + '</div>' +
         '<div class="daynum">' + lv.id + '</div>' +
         (completedInfo ? '<div class="stars">' + "★".repeat(completedInfo.stars) + "☆".repeat(3 - completedInfo.stars) + '</div>' : '');
       if (unlocked) {
-        node.addEventListener("click", () => startLesson(lv));
+        node.addEventListener("click", () => needsStudy ? startStudy(lv) : startLesson(lv));
       }
 
       const sideLabel = document.createElement("div");
       sideLabel.className = "node-side-label";
       sideLabel.textContent = lv.label + " · " + lv.sub;
+      if (unlocked && needsStudy) {
+        const tag = document.createElement("div");
+        tag.style.cssText = "font-size:11px;color:var(--primary-dark);font-weight:700;margin-top:2px;";
+        tag.textContent = "先学习再测试";
+        sideLabel.appendChild(tag);
+      } else if (unlocked && lv.type === "learn") {
+        const restudyBtn = document.createElement("button");
+        restudyBtn.textContent = "📖 复习单词";
+        restudyBtn.style.cssText = "margin-top:4px;font-size:11px;font-weight:700;color:var(--primary-dark);background:none;border:1px solid var(--primary);border-radius:999px;padding:2px 8px;";
+        restudyBtn.addEventListener("click", (e) => { e.stopPropagation(); startStudy(lv); });
+        sideLabel.appendChild(restudyBtn);
+      }
 
       if (idx % 2 === 0) {
         row.appendChild(node);
@@ -374,6 +430,214 @@ const WORDS = [{"day":1,"theme":"高频动词（日常动作/沟通类）","word
     }
 
     app.appendChild(wrap);
+  }
+
+  /* ---------------- STUDY SCREEN (learn before test) ---------------- */
+  function startStudy(level) {
+    studyState = {
+      level,
+      words: shuffle(WORDS_BY_DAY[level.id]),
+      phase: "browse", // browse | recall | done
+      idx: 0,
+      flipped: false,
+      recallQueue: [],
+      recallRevealed: false,
+      knownCount: 0,
+    };
+    go("study");
+  }
+
+  function renderStudyBrowse() {
+    const st = studyState;
+    const word = st.words[st.idx];
+    const wrap = document.createElement("div");
+    wrap.className = "study-wrap";
+
+    const topbar = document.createElement("div");
+    topbar.className = "study-topbar";
+    const closeBtn = document.createElement("button");
+    closeBtn.className = "close-btn";
+    closeBtn.textContent = "✕";
+    closeBtn.addEventListener("click", () => go("map"));
+    const progress = document.createElement("div");
+    progress.className = "study-progress-text";
+    progress.textContent = "学习 " + (st.idx + 1) + " / " + st.words.length;
+    const badge = document.createElement("div");
+    badge.className = "study-mode-badge";
+    badge.textContent = "第一步·认识单词";
+    topbar.appendChild(closeBtn);
+    topbar.appendChild(progress);
+    topbar.appendChild(badge);
+    wrap.appendChild(topbar);
+
+    const card = document.createElement("div");
+    card.className = "study-card";
+    if (!st.flipped) {
+      card.innerHTML =
+        '<div class="study-flip-hint">点击卡片，看中文意思和例句 👆</div>' +
+        '<div class="study-word">' + word.word + '</div>' +
+        '<div class="study-pos">' + word.pos + '</div>' +
+        '<div class="study-ipa">/' + word.ipa + '/</div>';
+      const speakBtn = document.createElement("button");
+      speakBtn.className = "speak-btn";
+      speakBtn.textContent = "🔊";
+      speakBtn.addEventListener("click", (e) => { e.stopPropagation(); speak(word.word); });
+      card.appendChild(speakBtn);
+    } else {
+      card.innerHTML =
+        '<div class="study-flip-hint">点击卡片，翻回单词 👆</div>' +
+        '<div class="study-cn">' + word.cn + '</div>' +
+        '<div class="study-sentence">' + renderSentenceHTML(word.en, word.word) + '</div>' +
+        '<div class="study-sentence-zh">' + word.zh + '</div>';
+      const speakBtn = document.createElement("button");
+      speakBtn.className = "speak-btn";
+      speakBtn.textContent = "🔊";
+      speakBtn.addEventListener("click", (e) => { e.stopPropagation(); speak(extractMarker(word.en) ? word.en.replace(/\{\{(.*?)\}\}/, "$1") : word.word); });
+      card.appendChild(speakBtn);
+    }
+    card.addEventListener("click", () => { st.flipped = !st.flipped; renderStudy(); });
+    wrap.appendChild(card);
+
+    const nav = document.createElement("div");
+    nav.className = "study-nav";
+    const prevBtn = document.createElement("button");
+    prevBtn.className = "nav-icon-btn";
+    prevBtn.textContent = "◀";
+    prevBtn.disabled = st.idx === 0;
+    prevBtn.addEventListener("click", () => { if (st.idx > 0) { st.idx--; st.flipped = false; renderStudy(); } });
+    nav.appendChild(prevBtn);
+
+    const nextBtn = document.createElement("button");
+    nextBtn.className = "btn-primary";
+    const isLast = st.idx === st.words.length - 1;
+    nextBtn.textContent = isLast ? "看完啦，开始自测 →" : "下一个";
+    nextBtn.addEventListener("click", () => {
+      if (isLast) {
+        st.phase = "recall";
+        st.recallQueue = shuffle(st.words);
+        st.recallRevealed = false;
+      } else {
+        st.idx++;
+        st.flipped = false;
+      }
+      renderStudy();
+    });
+    nav.appendChild(nextBtn);
+    wrap.appendChild(nav);
+
+    app.appendChild(wrap);
+  }
+
+  function renderStudyRecall() {
+    const st = studyState;
+    const wrap = document.createElement("div");
+    wrap.className = "study-wrap";
+
+    if (st.recallQueue.length === 0) {
+      // finished self-test — mark this day as studied and hand off to the test
+      state.studied[st.level.id] = true;
+      saveState();
+      const doneWrap = document.createElement("div");
+      doneWrap.className = "summary-wrap";
+      doneWrap.innerHTML =
+        '<div class="summary-emoji">📚</div>' +
+        '<div class="summary-title">Day ' + st.level.id + ' 单词学完啦！</div>' +
+        '<div class="summary-sub">一共学了 ' + st.words.length + ' 个词，自测认对 ' + st.knownCount + ' 次，现在去闯关测试一下吧</div>';
+      const actions = document.createElement("div");
+      actions.className = "summary-actions";
+      const testBtn = document.createElement("button");
+      testBtn.className = "btn-primary";
+      testBtn.textContent = "开始测试关卡";
+      testBtn.addEventListener("click", () => startLesson(st.level));
+      actions.appendChild(testBtn);
+      const mapBtn = document.createElement("button");
+      mapBtn.className = "btn-secondary";
+      mapBtn.textContent = "返回关卡地图";
+      mapBtn.addEventListener("click", () => go("map"));
+      actions.appendChild(mapBtn);
+      doneWrap.appendChild(actions);
+      app.appendChild(doneWrap);
+      return;
+    }
+
+    const word = st.recallQueue[0];
+    const topbar = document.createElement("div");
+    topbar.className = "study-topbar";
+    const closeBtn = document.createElement("button");
+    closeBtn.className = "close-btn";
+    closeBtn.textContent = "✕";
+    closeBtn.addEventListener("click", () => go("map"));
+    const progress = document.createElement("div");
+    progress.className = "study-progress-text";
+    progress.textContent = "剩余 " + st.recallQueue.length + " 个 · 已掌握 " + st.knownCount;
+    const badge = document.createElement("div");
+    badge.className = "study-mode-badge recall";
+    badge.textContent = "第二步·自测回忆";
+    topbar.appendChild(closeBtn);
+    topbar.appendChild(progress);
+    topbar.appendChild(badge);
+    wrap.appendChild(topbar);
+
+    const card = document.createElement("div");
+    card.className = "recall-card";
+    if (!st.recallRevealed) {
+      card.innerHTML =
+        '<div class="study-cn">' + word.cn + '</div>' +
+        '<div class="study-pos">' + word.pos + '</div>' +
+        '<div class="recall-hint">先别看答案，回忆一下这个词的英文怎么写、怎么读 🤔</div>';
+    } else {
+      card.innerHTML =
+        '<div class="study-word">' + word.word + '</div>' +
+        '<div class="study-ipa">/' + word.ipa + '/</div>' +
+        '<div class="study-sentence" style="margin-top:12px;">' + renderSentenceHTML(word.en, word.word) + '</div>';
+      const speakBtn = document.createElement("button");
+      speakBtn.className = "speak-btn";
+      speakBtn.textContent = "🔊";
+      speakBtn.addEventListener("click", () => speak(word.word));
+      card.appendChild(speakBtn);
+    }
+    wrap.appendChild(card);
+
+    if (!st.recallRevealed) {
+      const revealBtn = document.createElement("button");
+      revealBtn.className = "btn-primary";
+      revealBtn.textContent = "显示答案";
+      revealBtn.addEventListener("click", () => { st.recallRevealed = true; renderStudy(); });
+      wrap.appendChild(revealBtn);
+    } else {
+      const markRow = document.createElement("div");
+      markRow.className = "recall-mark-row";
+      const unknownBtn = document.createElement("button");
+      unknownBtn.className = "btn-secondary";
+      unknownBtn.textContent = "还没记住";
+      unknownBtn.addEventListener("click", () => {
+        const missedWord = st.recallQueue.shift();
+        const insertAt = Math.min(3 + Math.floor(Math.random() * 3), st.recallQueue.length);
+        st.recallQueue.splice(insertAt, 0, missedWord);
+        st.recallRevealed = false;
+        renderStudy();
+      });
+      const knownBtn = document.createElement("button");
+      knownBtn.className = "btn-primary recall-known-btn";
+      knownBtn.textContent = "记住了 ✓";
+      knownBtn.addEventListener("click", () => {
+        st.recallQueue.shift();
+        st.knownCount++;
+        st.recallRevealed = false;
+        renderStudy();
+      });
+      markRow.appendChild(unknownBtn);
+      markRow.appendChild(knownBtn);
+      wrap.appendChild(markRow);
+    }
+
+    app.appendChild(wrap);
+  }
+
+  function renderStudy() {
+    app.innerHTML = "";
+    if (studyState.phase === "browse") renderStudyBrowse();
+    else renderStudyRecall();
   }
 
   /* ---------------- LESSON SCREEN ---------------- */
@@ -714,6 +978,7 @@ const WORDS = [{"day":1,"theme":"高频动词（日常动作/沟通类）","word
   /* ================= render dispatcher ================= */
   function render() {
     if (screen === "map") renderMap();
+    else if (screen === "study") renderStudy();
     else if (screen === "lesson") renderLesson();
     else if (screen === "summary") renderSummary();
   }
