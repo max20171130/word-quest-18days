@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>单词闯关 - 初一暑假英语</title>
+<style>
+  :root {
+    --bg: #F4F7FB;
+    --card: #FFFFFF;
+    --primary: #3E63DD;
+    --primary-dark: #2C49B4;
+    --success: #23A566;
+    --success-bg: #E4F8EE;
+    --danger: #E5484D;
+    --danger-bg: #FDECEC;
+    --gold: #F5A623;
+    --text: #1F2937;
+    --text-dim: #6B7280;
+    --locked: #C7CDD6;
+    --radius: 18px;
+    --shadow: 0 6px 18px rgba(31,41,55,0.08);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: var(--bg);
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+    color: var(--text);
+    overscroll-behavior: none;
+  }
+  #app { max-width: 480px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; padding-bottom: env(safe-area-inset-bottom); }
+
+  /* ---------- Header / stats bar ---------- */
+  .statbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px calc(10px + env(safe-area-inset-top)) 16px;
+    padding-top: max(14px, env(safe-area-inset-top));
+    background: var(--card);
+    box-shadow: var(--shadow);
+    position: sticky; top: 0; z-index: 20;
+  }
+  .stat { display: flex; align-items: center; gap: 4px; font-weight: 700; font-size: 15px; }
+  .stat .emoji { font-size: 18px; }
+  .brand { font-size: 17px; font-weight: 800; color: var(--primary-dark); }
+
+  /* ---------- Map screen ---------- */
+  .map-wrap { flex: 1; padding: 20px 16px 40px; overflow-y: auto; }
+  .map-title { text-align: center; margin: 4px 0 22px; }
+  .map-title h1 { font-size: 20px; margin: 0 0 4px; }
+  .map-title p { font-size: 13px; color: var(--text-dim); margin: 0; }
+
+  .path { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .node-row { display: flex; align-items: center; width: 100%; justify-content: center; }
+  .node {
+    width: 76px; height: 76px; border-radius: 50%;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: var(--primary); color: #fff; font-weight: 800; font-size: 14px;
+    box-shadow: 0 6px 0 var(--primary-dark);
+    border: none; cursor: pointer; position: relative;
+    transition: transform .08s ease;
+  }
+  .node:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--primary-dark); }
+  .node.locked { background: var(--locked); box-shadow: 0 6px 0 #A7AEB9; cursor: default; }
+  .node.locked:active { transform: none; box-shadow: 0 6px 0 #A7AEB9; }
+  .node.review { background: var(--gold); box-shadow: 0 6px 0 #C97F0E; }
+  .node.review:active { box-shadow: 0 2px 0 #C97F0E; }
+  .node .daylabel { font-size: 11px; opacity: .85; }
+  .node .daynum { font-size: 20px; }
+  .node .stars { position: absolute; bottom: -14px; font-size: 13px; letter-spacing: 1px; }
+  .node-side-label { font-size: 12px; color: var(--text-dim); max-width: 90px; text-align: center; line-height: 1.3; }
+  .connector { width: 4px; height: 20px; background: #D7DEE8; border-radius: 2px; }
+
+  .free-review-btn {
+    margin: 26px auto 0; display: block; width: fit-content;
+    background: var(--card); border: 2px solid var(--primary); color: var(--primary-dark);
+    font-weight: 700; font-size: 14px; padding: 12px 22px; border-radius: 999px;
+    box-shadow: var(--shadow);
+  }
+
+  /* ---------- Lesson screen ---------- */
+  .lesson-wrap { flex: 1; display: flex; flex-direction: column; padding: 12px 16px 24px; }
+  .lesson-topbar { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+  .close-btn { font-size: 22px; color: var(--text-dim); background: none; border: none; padding: 4px 8px; cursor: pointer; }
+  .progressbar-track { flex: 1; height: 14px; background: #E5E9F0; border-radius: 999px; overflow: hidden; }
+  .progressbar-fill { height: 100%; background: var(--success); border-radius: 999px; transition: width .3s ease; }
+  .hearts { display: flex; gap: 3px; font-size: 17px; min-width: 76px; justify-content: flex-end; }
+
+  .question-card { flex: 1; display: flex; flex-direction: column; }
+  .q-instruction { font-size: 14px; color: var(--text-dim); font-weight: 700; margin-bottom: 10px; }
+  .q-prompt {
+    background: var(--card); border-radius: var(--radius); padding: 22px 18px;
+    box-shadow: var(--shadow); margin-bottom: 18px; text-align: center;
+  }
+  .q-prompt .word { font-size: 30px; font-weight: 800; color: var(--primary-dark); }
+  .q-prompt .ipa { font-size: 16px; color: var(--text-dim); margin-top: 4px; font-style: italic; }
+  .q-prompt .pos { font-size: 13px; color: var(--text-dim); margin-top: 2px; }
+  .q-prompt .cn { font-size: 26px; font-weight: 800; }
+  .q-prompt .sentence { font-size: 16px; line-height: 1.6; margin-top: 6px; }
+  .q-prompt .sentence .blank { display: inline-block; min-width: 60px; border-bottom: 2px solid var(--primary); color: var(--primary-dark); font-weight: 800; }
+  .q-prompt .sentence-zh { font-size: 13px; color: var(--text-dim); margin-top: 6px; }
+  .speak-btn {
+    margin-top: 10px; background: var(--primary); color: #fff; border: none;
+    width: 46px; height: 46px; border-radius: 50%; font-size: 20px; box-shadow: 0 4px 0 var(--primary-dark);
+  }
+  .speak-btn:active { transform: translateY(3px); box-shadow: none; }
+
+  .options { display: flex; flex-direction: column; gap: 10px; }
+  .option-btn {
+    background: var(--card); border: 2px solid #E1E6EE; border-radius: 14px;
+    padding: 14px 16px; font-size: 17px; font-weight: 700; text-align: left;
+    color: var(--text); cursor: pointer;
+  }
+  .option-btn:active { background: #EEF1F7; }
+  .option-btn.correct { background: var(--success-bg); border-color: var(--success); color: var(--success); }
+  .option-btn.wrong { background: var(--danger-bg); border-color: var(--danger); color: var(--danger); }
+  .option-btn.dim { opacity: .5; }
+
+  .spell-row { display: flex; gap: 10px; margin-top: 4px; }
+  .spell-input {
+    flex: 1; font-size: 20px; padding: 14px 16px; border-radius: 14px;
+    border: 2px solid #E1E6EE; font-weight: 700; color: var(--text);
+  }
+  .spell-input.correct { border-color: var(--success); background: var(--success-bg); color: var(--success); }
+  .spell-input.wrong { border-color: var(--danger); background: var(--danger-bg); color: var(--danger); }
+  .hint-btn { background: #EEF1F7; border: none; border-radius: 14px; padding: 0 16px; font-weight: 700; color: var(--text-dim); font-size: 14px; }
+
+  .feedback-bar {
+    position: sticky; bottom: 0; left: 0; right: 0;
+    padding: 14px 16px calc(14px + env(safe-area-inset-bottom));
+    margin: 16px -16px -24px; border-radius: 18px 18px 0 0;
+  }
+  .feedback-bar.correct { background: var(--success-bg); }
+  .feedback-bar.wrong { background: var(--danger-bg); }
+  .feedback-text { font-weight: 800; font-size: 16px; margin-bottom: 4px; }
+  .feedback-bar.correct .feedback-text { color: var(--success); }
+  .feedback-bar.wrong .feedback-text { color: var(--danger); }
+  .feedback-answer { font-size: 14px; color: var(--text-dim); margin-bottom: 10px; }
+  .btn-primary {
+    width: 100%; padding: 15px; border: none; border-radius: 14px; font-size: 17px; font-weight: 800;
+    color: #fff; background: var(--primary); box-shadow: 0 4px 0 var(--primary-dark);
+  }
+  .btn-primary:active { transform: translateY(3px); box-shadow: none; }
+  .feedback-bar.wrong .btn-primary { background: var(--danger); box-shadow: 0 4px 0 #B23238; }
+
+  .check-btn {
+    width: 100%; padding: 15px; border: none; border-radius: 14px; font-size: 17px; font-weight: 800;
+    color: #fff; background: var(--locked); box-shadow: 0 4px 0 #A7AEB9; margin-top: 16px;
+  }
+  .check-btn.active { background: var(--success); box-shadow: 0 4px 0 #17824B; }
+
+  /* ---------- Summary screen ---------- */
+  .summary-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 30px 20px; text-align: center; }
+  .summary-emoji { font-size: 58px; margin-bottom: 8px; }
+  .summary-title { font-size: 22px; font-weight: 800; margin: 0 0 4px; }
+  .summary-sub { font-size: 14px; color: var(--text-dim); margin-bottom: 20px; }
+  .summary-stars { font-size: 34px; letter-spacing: 6px; margin-bottom: 18px; }
+  .summary-stats { display: flex; gap: 14px; margin-bottom: 26px; width: 100%; max-width: 320px; }
+  .summary-stat-card { flex: 1; background: var(--card); border-radius: 14px; padding: 14px 8px; box-shadow: var(--shadow); }
+  .summary-stat-card .num { font-size: 20px; font-weight: 800; color: var(--primary-dark); }
+  .summary-stat-card .label { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+  .miss-list { width: 100%; max-width: 340px; background: var(--card); border-radius: 14px; box-shadow: var(--shadow); padding: 14px; margin-bottom: 22px; text-align: left; }
+  .miss-list h3 { font-size: 14px; margin: 0 0 8px; color: var(--text-dim); }
+  .miss-item { font-size: 15px; padding: 6px 0; border-bottom: 1px solid #EEF1F7; display: flex; justify-content: space-between; }
+  .miss-item:last-child { border-bottom: none; }
+  .miss-item .w { font-weight: 700; }
+  .miss-item .c { color: var(--text-dim); }
+  .summary-actions { width: 100%; max-width: 320px; display: flex; flex-direction: column; gap: 10px; }
+  .btn-secondary {
+    width: 100%; padding: 14px; border-radius: 14px; font-size: 16px; font-weight: 700;
+    background: var(--card); color: var(--primary-dark); border: 2px solid var(--primary);
+  }
+
+  .hidden { display: none !important; }
+
+  .streak-toast {
+    position: fixed; top: 12px; left: 50%; transform: translateX(-50%);
+    background: var(--text); color: #fff; padding: 10px 18px; border-radius: 999px;
+    font-size: 14px; font-weight: 700; z-index: 100; box-shadow: 0 6px 16px rgba(0,0,0,.2);
+    opacity: 0; transition: opacity .3s ease, top .3s ease;
+    pointer-events: none;
+  }
+  .streak-toast.show { opacity: 1; top: 20px; }
+
+  .storage-warning {
+    font-size: 11px; color: var(--text-dim); text-align: center; padding: 6px 16px 0;
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+const WORDS = [{"day":1,"theme":"高频动词（日常动作/沟通类）","word":"accept","pos":"v.","cn":"接受","ipa":"əkˈsɛpt","en":"I {{accept}} your invitation to the party.","zh":"我接受你的派对邀请。"},{"day":1,"theme":"高频动词（日常动作/沟通类）","word":"appear","pos":"v.","cn":"出现；似乎","ipa":"əˈpɪr","en":"The stars {{appear}} in the sky after sunset.","zh":"太阳落山后星星就出现在天空中。"},{"day":1,"theme":"高频动词（日常动作/沟通类）","word":"continue","pos":"v.","cn":"继续","ipa":"kənˈtɪnju","en":"Please {{continue}} reading the next chapter.","zh":"请继续读下一章。"},{"day":1,"theme":"高频动词（日常动作/沟通类）","word":"decide","pos":"v.","cn":"决定","ipa":"ˌdɪˈsaɪd","en":"We need to {{decide}} where to go this weekend.","zh":"我们需要决定这个周末去哪里。"},{"day":1,"theme":"高频动词（日常动作/沟通类）","word":"discover","pos":"v.","cn":"发现","ipa":"dɪˈskəvər","en":"Scientists {{discovered}} a new planet last year.","zh":"科学家去年发现了一颗新行星。"},{"day":1,"theme":"高频动词（日常动作/沟通类）","word":"expect","pos":"v.","cn":"期待，预料","ipa":"ɪkˈspɛkt","en":"I {{expect}} to finish my homework before dinner.","zh":"我预计晚饭前能做完作业。"},{"day":1,"theme":"高频动词（日常动作/沟通类）","word":"prepare","pos":"v.","cn":"准备","ipa":"priˈpɛr","en":"She is {{preparing}} for her English exam.","zh":"她正在为英语考试做准备。"},{"day":1,"theme":"高频动词（日常动作/沟通类）","word":"protect","pos":"v.","cn":"保护","ipa":"prəˈtɛkt","en":"Wearing a helmet can {{protect}} your head.","zh":"戴头盔可以保护你的头部。"},{"day":1,"theme":"高频动词（日常动作/沟通类）","word":"produce","pos":"v.","cn":"生产；产生","ipa":"ˈproʊdus","en":"This factory {{produces}} thousands of toys every day.","zh":"这家工厂每天生产成千上万个玩具。"},{"day":1,"theme":"高频动词（日常动作/沟通类）","word":"provide","pos":"v.","cn":"提供","ipa":"prəˈvaɪd","en":"The school will {{provide}} lunch for all students.","zh":"学校将为所有学生提供午餐。"},{"day":1,"theme":"高频动词（日常动作/沟通类）","word":"receive","pos":"v.","cn":"收到","ipa":"rɪˈsiv","en":"I {{received}} a nice birthday gift from my aunt.","zh":"我收到了姑姑送的很棒的生日礼物。"},{"day":1,"theme":"高频动词（日常动作/沟通类）","word":"recognize","pos":"v.","cn":"认出；承认","ipa":"ˈrɛkəgˌnaɪz","en":"I didn't {{recognize}} him with his new haircut.","zh":"他剪了新发型,我都认不出他了。"},{"day":1,"theme":"高频动词（日常动作/沟通类）","word":"remain","pos":"v.","cn":"保持；剩下","ipa":"rɪˈmeɪn","en":"Only a few seats {{remain}} for the concert.","zh":"音乐会只剩下几个座位了。"},{"day":1,"theme":"高频动词（日常动作/沟通类）","word":"require","pos":"v.","cn":"需要，要求","ipa":"ˌrikˈwaɪər","en":"This job {{requires}} good communication skills.","zh":"这份工作需要良好的沟通能力。"},{"day":1,"theme":"高频动词（日常动作/沟通类）","word":"suggest","pos":"v.","cn":"建议","ipa":"səˈʤɛst","en":"My teacher {{suggested}} that I read more books.","zh":"我的老师建议我多读书。"},{"day":1,"theme":"高频动词（日常动作/沟通类）","word":"suppose","pos":"v.","cn":"猜想，假设","ipa":"səˈpoʊz","en":"I {{suppose}} it will rain tomorrow.","zh":"我猜明天会下雨。"},{"day":1,"theme":"高频动词（日常动作/沟通类）","word":"realize","pos":"v.","cn":"意识到","ipa":"ˈriəˌlaɪz","en":"I didn't {{realize}} how late it was.","zh":"我没意识到已经这么晚了。"},{"day":1,"theme":"高频动词（日常动作/沟通类）","word":"seem","pos":"v.","cn":"似乎","ipa":"sim","en":"She {{seems}} very happy today.","zh":"她今天看起来很开心。"},{"day":1,"theme":"高频动词（日常动作/沟通类）","word":"succeed","pos":"v.","cn":"成功","ipa":"səkˈsid","en":"He worked hard and finally {{succeeded}}.","zh":"他努力工作,最终成功了。"},{"day":1,"theme":"高频动词（日常动作/沟通类）","word":"support","pos":"v.","cn":"支持","ipa":"səˈpɔrt","en":"My parents always {{support}} my dreams.","zh":"我父母一直支持我的梦想。"},{"day":1,"theme":"高频动词（日常动作/沟通类）","word":"mention","pos":"v.","cn":"提到","ipa":"ˈmɛnʃən","en":"She didn't {{mention}} the meeting time.","zh":"她没有提到会议时间。"},{"day":1,"theme":"高频动词（日常动作/沟通类）","word":"offer","pos":"v.","cn":"提供，主动提出","ipa":"ˈɔfər","en":"My friend {{offered}} to help me with math.","zh":"我朋友主动提出帮我学数学。"},{"day":1,"theme":"高频动词（日常动作/沟通类）","word":"promise","pos":"v./n.","cn":"承诺","ipa":"ˈprɑməs","en":"I {{promise}} to call you tonight.","zh":"我保证今晚给你打电话。"},{"day":1,"theme":"高频动词（日常动作/沟通类）","word":"refuse","pos":"v.","cn":"拒绝","ipa":"ˈrɛfˌjuz","en":"He {{refused}} to give up on his dream.","zh":"他拒绝放弃自己的梦想。"},{"day":1,"theme":"高频动词（日常动作/沟通类）","word":"remind","pos":"v.","cn":"提醒","ipa":"riˈmaɪnd","en":"Please {{remind}} me to bring my umbrella.","zh":"请提醒我带伞。"},{"day":1,"theme":"高频动词（日常动作/沟通类）","word":"remove","pos":"v.","cn":"移除","ipa":"riˈmuv","en":"Please {{remove}} your shoes before entering.","zh":"进门前请脱鞋。"},{"day":1,"theme":"高频动词（日常动作/沟通类）","word":"repair","pos":"v.","cn":"修理","ipa":"rɪˈpɛr","en":"The workers are {{repairing}} the broken road.","zh":"工人们正在修理损坏的道路。"},{"day":1,"theme":"高频动词（日常动作/沟通类）","word":"replace","pos":"v.","cn":"替换","ipa":"ˌriˈpleɪs","en":"We need to {{replace}} the old computer.","zh":"我们需要更换这台旧电脑。"},{"day":1,"theme":"高频动词（日常动作/沟通类）","word":"reply","pos":"v.","cn":"回答，回复","ipa":"rɪˈplaɪ","en":"She didn't {{reply}} to my message.","zh":"她没有回复我的消息。"},{"day":1,"theme":"高频动词（日常动作/沟通类）","word":"represent","pos":"v.","cn":"代表","ipa":"ˌrɛprɪˈzɛnt","en":"This flag {{represents}} our country.","zh":"这面旗帜代表我们的国家。"},{"day":1,"theme":"高频动词（日常动作/沟通类）","word":"request","pos":"v./n.","cn":"请求","ipa":"rɪkˈwɛst","en":"He made a {{request}} for extra time.","zh":"他请求延长时间。"},{"day":1,"theme":"高频动词（日常动作/沟通类）","word":"affect","pos":"v.","cn":"影响","ipa":"əˈfɛkt","en":"Lack of sleep can {{affect}} your health.","zh":"睡眠不足会影响你的健康。"},{"day":1,"theme":"高频动词（日常动作/沟通类）","word":"avoid","pos":"v.","cn":"避免","ipa":"əˈvɔɪd","en":"Try to {{avoid}} eating too much sugar.","zh":"尽量避免吃太多糖。"},{"day":1,"theme":"高频动词（日常动作/沟通类）","word":"compare","pos":"v.","cn":"比较","ipa":"kəmˈpɛr","en":"Let's {{compare}} the two plans before deciding.","zh":"我们决定之前先比较一下这两个方案。"},{"day":1,"theme":"高频动词（日常动作/沟通类）","word":"complain","pos":"v.","cn":"抱怨","ipa":"kəmˈpleɪn","en":"Stop {{complaining}} about the weather.","zh":"别再抱怨天气了。"},{"day":2,"theme":"高频动词（情感/交流类）","word":"agree","pos":"v.","cn":"同意","ipa":"əˈgri","en":"I {{agree}} with your opinion.","zh":"我同意你的观点。"},{"day":2,"theme":"高频动词（情感/交流类）","word":"admit","pos":"v.","cn":"承认","ipa":"ədˈmɪt","en":"He {{admitted}} that he made a mistake.","zh":"他承认自己犯了错误。"},{"day":2,"theme":"高频动词（情感/交流类）","word":"allow","pos":"v.","cn":"允许","ipa":"əˈlaʊ","en":"My parents {{allow}} me to play games on weekends.","zh":"我父母允许我周末玩游戏。"},{"day":2,"theme":"高频动词（情感/交流类）","word":"apologize","pos":"v.","cn":"道歉","ipa":"əˈpɑləˌʤaɪz","en":"I want to {{apologize}} for being late.","zh":"我想为迟到道歉。"},{"day":2,"theme":"高频动词（情感/交流类）","word":"argue","pos":"v.","cn":"争论，争吵","ipa":"ˈɑrgju","en":"The two brothers often {{argue}} about small things.","zh":"这两兄弟经常为小事争吵。"},{"day":2,"theme":"高频动词（情感/交流类）","word":"believe","pos":"v.","cn":"相信","ipa":"bɪˈliv","en":"I {{believe}} you can do it.","zh":"我相信你能做到。"},{"day":2,"theme":"高频动词（情感/交流类）","word":"blame","pos":"v.","cn":"责怪","ipa":"bleɪm","en":"Don't {{blame}} yourself for the accident.","zh":"不要为这次事故责怪自己。"},{"day":2,"theme":"高频动词（情感/交流类）","word":"celebrate","pos":"v.","cn":"庆祝","ipa":"ˈsɛləˌbreɪt","en":"We will {{celebrate}} my grandmother's birthday tomorrow.","zh":"我们明天要庆祝我奶奶的生日。"},{"day":2,"theme":"高频动词（情感/交流类）","word":"comfort","pos":"v./n.","cn":"安慰","ipa":"ˈkəmfərt","en":"She tried to {{comfort}} her crying friend.","zh":"她试着安慰哭泣的朋友。"},{"day":2,"theme":"高频动词（情感/交流类）","word":"concern","pos":"v./n.","cn":"涉及；担忧","ipa":"kənˈsərn","en":"Pollution is a growing {{concern}} for everyone.","zh":"污染日益成为大家关注的问题。"},{"day":2,"theme":"高频动词（情感/交流类）","word":"confuse","pos":"v.","cn":"使困惑","ipa":"kənfˈjuz","en":"The instructions really {{confused}} me.","zh":"这些说明真的把我搞糊涂了。"},{"day":2,"theme":"高频动词（情感/交流类）","word":"congratulate","pos":"v.","cn":"祝贺","ipa":"kənˈgræʧəˌleɪt","en":"I want to {{congratulate}} you on your success.","zh":"我想祝贺你取得成功。"},{"day":2,"theme":"高频动词（情感/交流类）","word":"consider","pos":"v.","cn":"考虑；认为","ipa":"kənˈsɪdər","en":"Please {{consider}} my suggestion carefully.","zh":"请仔细考虑我的建议。"},{"day":2,"theme":"高频动词（情感/交流类）","word":"deny","pos":"v.","cn":"否认","ipa":"dɪˈnaɪ","en":"He {{denied}} breaking the window.","zh":"他否认打破了窗户。"},{"day":2,"theme":"高频动词（情感/交流类）","word":"describe","pos":"v.","cn":"描述","ipa":"dɪˈskraɪb","en":"Can you {{describe}} what the thief looked like?","zh":"你能描述一下小偷长什么样吗?"},{"day":2,"theme":"高频动词（情感/交流类）","word":"disappoint","pos":"v.","cn":"使失望","ipa":"ˌdɪsəˈpɔɪnt","en":"I don't want to {{disappoint}} my parents.","zh":"我不想让父母失望。"},{"day":2,"theme":"高频动词（情感/交流类）","word":"discuss","pos":"v.","cn":"讨论","ipa":"dɪˈskəs","en":"Let's {{discuss}} the plan for the trip.","zh":"我们讨论一下旅行计划吧。"},{"day":2,"theme":"高频动词（情感/交流类）","word":"dislike","pos":"v.","cn":"不喜欢","ipa":"dɪsˈlaɪk","en":"I {{dislike}} waiting in long lines.","zh":"我不喜欢排长队。"},{"day":2,"theme":"高频动词（情感/交流类）","word":"doubt","pos":"v./n.","cn":"怀疑","ipa":"daʊt","en":"I {{doubt}} that he will come on time.","zh":"我怀疑他会不会准时来。"},{"day":2,"theme":"高频动词（情感/交流类）","word":"encourage","pos":"v.","cn":"鼓励","ipa":"ɪnˈkərəʤ","en":"My teacher always {{encourages}} me to try new things.","zh":"我的老师总是鼓励我尝试新事物。"},{"day":2,"theme":"高频动词（情感/交流类）","word":"excite","pos":"v.","cn":"使兴奋","ipa":"ɪkˈsaɪt","en":"The news really {{excited}} the whole class.","zh":"这个消息让全班都很兴奋。"},{"day":2,"theme":"高频动词（情感/交流类）","word":"explain","pos":"v.","cn":"解释","ipa":"ɪkˈspleɪn","en":"Can you {{explain}} this math problem to me?","zh":"你能给我解释一下这道数学题吗?"},{"day":2,"theme":"高频动词（情感/交流类）","word":"express","pos":"v.","cn":"表达","ipa":"ɪkˈsprɛs","en":"It's important to {{express}} your feelings honestly.","zh":"诚实地表达你的感受很重要。"},{"day":2,"theme":"高频动词（情感/交流类）","word":"forgive","pos":"v.","cn":"原谅","ipa":"fərˈgɪv","en":"I hope you can {{forgive}} me.","zh":"我希望你能原谅我。"},{"day":2,"theme":"高频动词（情感/交流类）","word":"frighten","pos":"v.","cn":"使害怕","ipa":"ˈfraɪtən","en":"The loud thunder {{frightened}} the little dog.","zh":"响雷声吓到了小狗。"},{"day":2,"theme":"高频动词（情感/交流类）","word":"greet","pos":"v.","cn":"问候","ipa":"grit","en":"She smiled and {{greeted}} her classmates.","zh":"她微笑着向同学们问好。"},{"day":2,"theme":"高频动词（情感/交流类）","word":"hope","pos":"v./n.","cn":"希望","ipa":"hoʊp","en":"I {{hope}} to visit Beijing someday.","zh":"我希望有一天能去北京。"},{"day":2,"theme":"高频动词（情感/交流类）","word":"imagine","pos":"v.","cn":"想象","ipa":"ˌɪˈmæʤən","en":"Can you {{imagine}} life without the internet?","zh":"你能想象没有互联网的生活吗?"},{"day":2,"theme":"高频动词（情感/交流类）","word":"impress","pos":"v.","cn":"给...留下印象","ipa":"ˌɪmˈprɛs","en":"Her speech really {{impressed}} the audience.","zh":"她的演讲给观众留下了深刻印象。"},{"day":2,"theme":"高频动词（情感/交流类）","word":"insist","pos":"v.","cn":"坚持","ipa":"ˌɪnˈsɪst","en":"He {{insisted}} on paying for the meal.","zh":"他坚持要付饭钱。"},{"day":2,"theme":"高频动词（情感/交流类）","word":"introduce","pos":"v.","cn":"介绍","ipa":"ˌɪntrəˈdus","en":"Let me {{introduce}} my new classmate to you.","zh":"让我向你介绍我的新同学。"},{"day":2,"theme":"高频动词（情感/交流类）","word":"invite","pos":"v.","cn":"邀请","ipa":"ˌɪnˈvaɪt","en":"We {{invited}} all our friends to the party.","zh":"我们邀请了所有朋友来参加派对。"},{"day":2,"theme":"高频动词（情感/交流类）","word":"notice","pos":"v./n.","cn":"注意到；通知","ipa":"ˈnoʊtɪs","en":"Did you {{notice}} the new poster on the wall?","zh":"你注意到墙上的新海报了吗?"},{"day":2,"theme":"高频动词（情感/交流类）","word":"persuade","pos":"v.","cn":"说服","ipa":"pərsˈweɪd","en":"She tried to {{persuade}} her mom to buy a puppy.","zh":"她试图说服妈妈买一只小狗。"},{"day":2,"theme":"高频动词（情感/交流类）","word":"prefer","pos":"v.","cn":"更喜欢","ipa":"prɪˈfər","en":"I {{prefer}} tea to coffee.","zh":"比起咖啡我更喜欢茶。"},{"day":3,"theme":"高频动词（动作/变化类）","word":"achieve","pos":"v.","cn":"达到，实现","ipa":"əˈʧiv","en":"You can {{achieve}} your goals through hard work.","zh":"通过努力你可以实现你的目标。"},{"day":3,"theme":"高频动词（动作/变化类）","word":"act","pos":"v.","cn":"行动；表演","ipa":"ækt","en":"Please {{act}} quickly in an emergency.","zh":"紧急情况下请迅速行动。"},{"day":3,"theme":"高频动词（动作/变化类）","word":"adjust","pos":"v.","cn":"调整","ipa":"əˈʤəst","en":"It took him a while to {{adjust}} to the new school.","zh":"他花了一段时间才适应新学校。"},{"day":3,"theme":"高频动词（动作/变化类）","word":"apply","pos":"v.","cn":"申请；应用","ipa":"əˈplaɪ","en":"You can {{apply}} this rule to other problems too.","zh":"你也可以把这个规则应用到其他问题上。"},{"day":3,"theme":"高频动词（动作/变化类）","word":"arrange","pos":"v.","cn":"安排","ipa":"əreɪnʤ","en":"We {{arranged}} to meet at the library at three.","zh":"我们安排三点在图书馆见面。"},{"day":3,"theme":"高频动词（动作/变化类）","word":"arise","pos":"v.","cn":"出现，产生","ipa":"əraɪz","en":"New problems may {{arise}} during the project.","zh":"项目进行中可能会出现新问题。"},{"day":3,"theme":"高频动词（动作/变化类）","word":"arrive","pos":"v.","cn":"到达","ipa":"əraɪv","en":"The train will {{arrive}} at six o'clock.","zh":"火车将在六点到达。"},{"day":3,"theme":"高频动词（动作/变化类）","word":"attach","pos":"v.","cn":"附上，系上","ipa":"əˈtæʧ","en":"Please {{attach}} your photo to the form.","zh":"请把你的照片附在表格上。"},{"day":3,"theme":"高频动词（动作/变化类）","word":"attack","pos":"v./n.","cn":"攻击","ipa":"əˈtæk","en":"The soldiers prepared to {{attack}} at dawn.","zh":"士兵们准备在黎明发起进攻。"},{"day":3,"theme":"高频动词（动作/变化类）","word":"attempt","pos":"v./n.","cn":"尝试","ipa":"əˈtɛmpt","en":"She made an {{attempt}} to fix the bike herself.","zh":"她试着自己修自行车。"},{"day":3,"theme":"高频动词（动作/变化类）","word":"attend","pos":"v.","cn":"参加，出席","ipa":"əˈtɛnd","en":"All students must {{attend}} the morning meeting.","zh":"所有学生必须参加早会。"},{"day":3,"theme":"高频动词（动作/变化类）","word":"attract","pos":"v.","cn":"吸引","ipa":"əˈtrækt","en":"Bright colors {{attract}} bees to flowers.","zh":"鲜艳的颜色吸引蜜蜂靠近花朵。"},{"day":3,"theme":"高频动词（动作/变化类）","word":"base","pos":"v./n.","cn":"以...为基础","ipa":"beɪs","en":"This movie is {{based}} on a true story.","zh":"这部电影根据真实故事改编。"},{"day":3,"theme":"高频动词（动作/变化类）","word":"behave","pos":"v.","cn":"表现","ipa":"bɪˈheɪv","en":"The children {{behaved}} well during the trip.","zh":"孩子们在旅行中表现很好。"},{"day":3,"theme":"高频动词（动作/变化类）","word":"belong","pos":"v.","cn":"属于","ipa":"bɪˈlɔŋ","en":"This book doesn't {{belong}} to me.","zh":"这本书不是我的。"},{"day":3,"theme":"高频动词（动作/变化类）","word":"benefit","pos":"v./n.","cn":"有益于；利益","ipa":"ˈbɛnəfɪt","en":"Regular exercise can {{benefit}} your health.","zh":"定期锻炼对你的健康有益。"},{"day":3,"theme":"高频动词（动作/变化类）","word":"bother","pos":"v.","cn":"打扰，麻烦","ipa":"ˈbɑðər","en":"Sorry to {{bother}} you, but can I ask a question?","zh":"抱歉打扰你,我能问个问题吗?"},{"day":3,"theme":"高频动词（动作/变化类）","word":"build","pos":"v.","cn":"建造","ipa":"bɪld","en":"They plan to {{build}} a new library next year.","zh":"他们计划明年建一座新图书馆。"},{"day":3,"theme":"高频动词（动作/变化类）","word":"burst","pos":"v.","cn":"爆裂，突然发生","ipa":"bərst","en":"The balloon suddenly {{burst}}.","zh":"气球突然爆裂了。"},{"day":3,"theme":"高频动词（动作/变化类）","word":"calculate","pos":"v.","cn":"计算","ipa":"ˈkælkjəˌleɪt","en":"Let's {{calculate}} the total cost of the trip.","zh":"我们来计算一下这次旅行的总费用。"},{"day":3,"theme":"高频动词（动作/变化类）","word":"cause","pos":"v./n.","cn":"导致；原因","ipa":"kɔz","en":"Heavy rain {{caused}} the flood.","zh":"暴雨引发了洪水。"},{"day":3,"theme":"高频动词（动作/变化类）","word":"challenge","pos":"v./n.","cn":"挑战","ipa":"ˈʧælənʤ","en":"Learning a new language is a big {{challenge}}.","zh":"学习一门新语言是个大挑战。"},{"day":3,"theme":"高频动词（动作/变化类）","word":"change","pos":"v./n.","cn":"改变","ipa":"ʧeɪnʤ","en":"The weather can {{change}} quickly in spring.","zh":"春天天气变化很快。"},{"day":3,"theme":"高频动词（动作/变化类）","word":"check","pos":"v.","cn":"检查","ipa":"ʧɛk","en":"Please {{check}} your answers before handing in the test.","zh":"交卷前请检查你的答案。"},{"day":3,"theme":"高频动词（动作/变化类）","word":"choose","pos":"v.","cn":"选择","ipa":"ʧuz","en":"It's hard to {{choose}} between the two colors.","zh":"在这两种颜色之间很难选择。"},{"day":3,"theme":"高频动词（动作/变化类）","word":"collect","pos":"v.","cn":"收集","ipa":"kəˈlɛkt","en":"He likes to {{collect}} old stamps.","zh":"他喜欢收集旧邮票。"},{"day":3,"theme":"高频动词（动作/变化类）","word":"combine","pos":"v.","cn":"结合","ipa":"ˈkɑmbaɪn","en":"You can {{combine}} the two ideas into one plan.","zh":"你可以把这两个想法结合成一个计划。"},{"day":3,"theme":"高频动词（动作/变化类）","word":"communicate","pos":"v.","cn":"交流","ipa":"kəmˈjunəˌkeɪt","en":"It's important to {{communicate}} clearly with your teammates.","zh":"和队友清楚地沟通很重要。"},{"day":3,"theme":"高频动词（动作/变化类）","word":"compete","pos":"v.","cn":"竞争","ipa":"kəmˈpit","en":"Our school will {{compete}} in the sports meeting.","zh":"我们学校将参加运动会比赛。"},{"day":3,"theme":"高频动词（动作/变化类）","word":"complete","pos":"v./adj.","cn":"完成；完整的","ipa":"kəmˈplit","en":"Please {{complete}} the form before Friday.","zh":"请在周五前填完表格。"},{"day":3,"theme":"高频动词（动作/变化类）","word":"concentrate","pos":"v.","cn":"集中（注意力）","ipa":"ˈkɑnsənˌtreɪt","en":"It's hard to {{concentrate}} with so much noise.","zh":"噪音这么大很难集中注意力。"},{"day":3,"theme":"高频动词（动作/变化类）","word":"conclude","pos":"v.","cn":"得出结论","ipa":"kənˈklud","en":"The teacher {{concluded}} the lesson with a short quiz.","zh":"老师用一个小测验结束了这节课。"},{"day":3,"theme":"高频动词（动作/变化类）","word":"connect","pos":"v.","cn":"连接","ipa":"kəˈnɛkt","en":"This bridge {{connects}} the two parts of the city.","zh":"这座桥连接了城市的两个部分。"},{"day":3,"theme":"高频动词（动作/变化类）","word":"construct","pos":"v.","cn":"建造，构建","ipa":"ˈkɑnstrəkt","en":"Workers are {{constructing}} a new bridge over the river.","zh":"工人们正在河上建造一座新桥。"},{"day":3,"theme":"高频动词（动作/变化类）","word":"contain","pos":"v.","cn":"包含","ipa":"kənˈteɪn","en":"This box {{contains}} old photos and letters.","zh":"这个盒子里装着旧照片和信件。"},{"day":4,"theme":"高频名词（教育/学习类）","word":"education","pos":"n.","cn":"教育","ipa":"ˌɛʤəˈkeɪʃən","en":"A good {{education}} can change your future.","zh":"良好的教育可以改变你的未来。"},{"day":4,"theme":"高频名词（教育/学习类）","word":"knowledge","pos":"n.","cn":"知识","ipa":"ˈnɑlɪʤ","en":"Reading books gives you more {{knowledge}}.","zh":"读书能让你获得更多知识。"},{"day":4,"theme":"高频名词（教育/学习类）","word":"subject","pos":"n.","cn":"科目；主题","ipa":"ˈsəbʤɪkt","en":"Math is my favorite {{subject}} at school.","zh":"数学是我在学校最喜欢的科目。"},{"day":4,"theme":"高频名词（教育/学习类）","word":"experiment","pos":"n.","cn":"实验","ipa":"ɪkˈspɛrəmənt","en":"We did an {{experiment}} in science class today.","zh":"我们今天在科学课上做了一个实验。"},{"day":4,"theme":"高频名词（教育/学习类）","word":"science","pos":"n.","cn":"科学","ipa":"saɪəns","en":"She is very interested in {{science}}.","zh":"她对科学非常感兴趣。"},{"day":4,"theme":"高频名词（教育/学习类）","word":"research","pos":"n./v.","cn":"研究","ipa":"ˈrisərʧ","en":"The scientists are doing {{research}} on climate change.","zh":"科学家们正在研究气候变化。"},{"day":4,"theme":"高频名词（教育/学习类）","word":"technology","pos":"n.","cn":"技术","ipa":"tɛkˈnɑləʤi","en":"New {{technology}} makes our lives easier.","zh":"新技术让我们的生活更方便。"},{"day":4,"theme":"高频名词（教育/学习类）","word":"information","pos":"n.","cn":"信息","ipa":"ˌɪnˌfɔrˈmeɪʃən","en":"You can find more {{information}} on the website.","zh":"你可以在网站上找到更多信息。"},{"day":4,"theme":"高频名词（教育/学习类）","word":"communication","pos":"n.","cn":"交流","ipa":"kəmˌjunəˈkeɪʃən","en":"Good {{communication}} helps solve problems.","zh":"良好的沟通有助于解决问题。"},{"day":4,"theme":"高频名词（教育/学习类）","word":"invention","pos":"n.","cn":"发明","ipa":"ˌɪnˈvɛnʃən","en":"The telephone was an important {{invention}}.","zh":"电话是一项重要的发明。"},{"day":4,"theme":"高频名词（教育/学习类）","word":"discovery","pos":"n.","cn":"发现","ipa":"ˌdɪˈskəvri","en":"The new {{discovery}} surprised all the scientists.","zh":"这项新发现让所有科学家都感到惊讶。"},{"day":4,"theme":"高频名词（教育/学习类）","word":"development","pos":"n.","cn":"发展","ipa":"dɪˈvɛləpmənt","en":"The city has seen fast {{development}} in recent years.","zh":"这座城市近年来发展迅速。"},{"day":4,"theme":"高频名词（教育/学习类）","word":"skill","pos":"n.","cn":"技能","ipa":"skɪl","en":"Cooking is a useful {{skill}} to learn.","zh":"烹饪是一项值得学习的实用技能。"},{"day":4,"theme":"高频名词（教育/学习类）","word":"ability","pos":"n.","cn":"能力","ipa":"əˈbɪləˌti","en":"She has the {{ability}} to solve difficult problems.","zh":"她有能力解决困难的问题。"},{"day":4,"theme":"高频名词（教育/学习类）","word":"experience","pos":"n./v.","cn":"经验；经历","ipa":"ɪkˈspɪriəns","en":"This trip was a great {{experience}} for me.","zh":"这次旅行对我来说是一次很棒的经历。"},{"day":4,"theme":"高频名词（教育/学习类）","word":"opportunity","pos":"n.","cn":"机会","ipa":"ˌɑpərˈtunəti","en":"Studying abroad is a great {{opportunity}}.","zh":"出国留学是一个很好的机会。"},{"day":4,"theme":"高频名词（教育/学习类）","word":"achievement","pos":"n.","cn":"成就","ipa":"əˈʧivmənt","en":"Winning the prize was a big {{achievement}} for him.","zh":"获奖对他来说是一项重大成就。"},{"day":4,"theme":"高频名词（教育/学习类）","word":"progress","pos":"n./v.","cn":"进步","ipa":"ˈprɑˌgrɛs","en":"You have made great {{progress}} this semester.","zh":"这学期你取得了很大进步。"},{"day":4,"theme":"高频名词（教育/学习类）","word":"degree","pos":"n.","cn":"学位；程度","ipa":"dɪˈgri","en":"My cousin is studying for a {{degree}} in medicine.","zh":"我表哥正在攻读医学学位。"},{"day":4,"theme":"高频名词（教育/学习类）","word":"university","pos":"n.","cn":"大学","ipa":"ˌjunəˈvərsəti","en":"She wants to study biology at {{university}}.","zh":"她想在大学学习生物学。"},{"day":4,"theme":"高频名词（教育/学习类）","word":"graduate","pos":"n./v.","cn":"毕业生；毕业","ipa":"ˈgræʤəˌweɪt","en":"My sister will {{graduate}} from high school next year.","zh":"我姐姐明年将从高中毕业。"},{"day":4,"theme":"高频名词（教育/学习类）","word":"lecture","pos":"n.","cn":"讲座","ipa":"ˈlɛkʧər","en":"The professor gave an interesting {{lecture}} on space.","zh":"教授做了一场关于太空的有趣讲座。"},{"day":4,"theme":"高频名词（教育/学习类）","word":"exam","pos":"n.","cn":"考试","ipa":"ɪgˈzæm","en":"I need to study hard for my English {{exam}}.","zh":"我需要为英语考试努力学习。"},{"day":4,"theme":"高频名词（教育/学习类）","word":"quiz","pos":"n.","cn":"小测验","ipa":"kwɪz","en":"We have a short {{quiz}} every Friday.","zh":"我们每周五都有一个小测验。"},{"day":4,"theme":"高频名词（教育/学习类）","word":"homework","pos":"n.","cn":"家庭作业","ipa":"ˈhoʊmˌwərk","en":"I finished all my {{homework}} before dinner.","zh":"我在晚饭前做完了所有作业。"},{"day":4,"theme":"高频名词（教育/学习类）","word":"assignment","pos":"n.","cn":"作业，任务","ipa":"əˈsaɪnmənt","en":"The teacher gave us a writing {{assignment}}.","zh":"老师给我们布置了一篇写作作业。"},{"day":4,"theme":"高频名词（教育/学习类）","word":"project","pos":"n.","cn":"项目","ipa":"ˈprɑʤɛkt","en":"Our group is working on a science {{project}}.","zh":"我们小组正在做一个科学项目。"},{"day":4,"theme":"高频名词（教育/学习类）","word":"presentation","pos":"n.","cn":"展示，报告","ipa":"ˌprɛzənˈteɪʃən","en":"I have to give a {{presentation}} in class tomorrow.","zh":"我明天要在课堂上做一个报告。"},{"day":4,"theme":"高频名词（教育/学习类）","word":"essay","pos":"n.","cn":"文章，论文","ipa":"ˈɛˌseɪ","en":"She wrote an {{essay}} about her hometown.","zh":"她写了一篇关于家乡的文章。"},{"day":4,"theme":"高频名词（教育/学习类）","word":"report","pos":"n./v.","cn":"报告","ipa":"rɪˈpɔrt","en":"He wrote a {{report}} about the school trip.","zh":"他写了一份关于学校旅行的报告。"},{"day":4,"theme":"高频名词（教育/学习类）","word":"textbook","pos":"n.","cn":"教科书","ipa":"ˈtɛkstˌbʊk","en":"Please open your {{textbook}} to page ten.","zh":"请把课本打开到第十页。"},{"day":4,"theme":"高频名词（教育/学习类）","word":"curriculum","pos":"n.","cn":"课程","ipa":"kərˈɪkjələm","en":"The new {{curriculum}} includes more art classes.","zh":"新课程包含更多的艺术课。"},{"day":4,"theme":"高频名词（教育/学习类）","word":"semester","pos":"n.","cn":"学期","ipa":"səˈmɛstər","en":"This {{semester}} has been very busy for me.","zh":"这个学期对我来说非常忙碌。"},{"day":4,"theme":"高频名词（教育/学习类）","word":"scholarship","pos":"n.","cn":"奖学金","ipa":"ˈskɑlərˌʃɪp","en":"He won a {{scholarship}} to study in Canada.","zh":"他获得了去加拿大留学的奖学金。"},{"day":4,"theme":"高频名词（教育/学习类）","word":"certificate","pos":"n.","cn":"证书","ipa":"sərˈtɪfɪkət","en":"She received a {{certificate}} for perfect attendance.","zh":"她因全勤获得了一张证书。"},{"day":5,"theme":"高频名词（环境/自然/科技类）","word":"environment","pos":"n.","cn":"环境","ipa":"ɪnˈvaɪrənmənt","en":"We should protect the {{environment}} for future generations.","zh":"我们应该为子孙后代保护环境。"},{"day":5,"theme":"高频名词（环境/自然/科技类）","word":"pollution","pos":"n.","cn":"污染","ipa":"pəˈluʃən","en":"Air {{pollution}} is a serious problem in big cities.","zh":"空气污染在大城市是一个严重问题。"},{"day":5,"theme":"高频名词（环境/自然/科技类）","word":"climate","pos":"n.","cn":"气候","ipa":"ˈklaɪmɪt","en":"The {{climate}} in the south is warm and wet.","zh":"南方的气候温暖潮湿。"},{"day":5,"theme":"高频名词（环境/自然/科技类）","word":"resource","pos":"n.","cn":"资源","ipa":"ˈrisɔrs","en":"Water is a very precious {{resource}}.","zh":"水是非常宝贵的资源。"},{"day":5,"theme":"高频名词（环境/自然/科技类）","word":"energy","pos":"n.","cn":"能源，能量","ipa":"ˈɛnərʤi","en":"Solar panels can produce clean {{energy}}.","zh":"太阳能板可以产生清洁能源。"},{"day":5,"theme":"高频名词（环境/自然/科技类）","word":"electricity","pos":"n.","cn":"电","ipa":"ɪˌlɛkˈtrɪsəti","en":"The storm cut off the {{electricity}} in our town.","zh":"暴风雨切断了我们镇上的电力。"},{"day":5,"theme":"高频名词（环境/自然/科技类）","word":"atmosphere","pos":"n.","cn":"大气；氛围","ipa":"ˈætməsˌfɪr","en":"The earth's {{atmosphere}} protects us from the sun.","zh":"地球的大气层保护我们免受太阳伤害。"},{"day":5,"theme":"高频名词（环境/自然/科技类）","word":"disaster","pos":"n.","cn":"灾难","ipa":"dɪˈzæstər","en":"The flood was a terrible natural {{disaster}}.","zh":"这场洪水是一场可怕的自然灾害。"},{"day":5,"theme":"高频名词（环境/自然/科技类）","word":"drought","pos":"n.","cn":"干旱","ipa":"draʊt","en":"The long {{drought}} damaged many crops.","zh":"长期的干旱损坏了许多庄稼。"},{"day":5,"theme":"高频名词（环境/自然/科技类）","word":"flood","pos":"n./v.","cn":"洪水","ipa":"fləd","en":"Heavy rain caused a {{flood}} in the village.","zh":"暴雨导致村庄发生洪水。"},{"day":5,"theme":"高频名词（环境/自然/科技类）","word":"earthquake","pos":"n.","cn":"地震","ipa":"ˈərθkˌweɪk","en":"The {{earthquake}} destroyed several buildings.","zh":"这场地震摧毁了几座建筑。"},{"day":5,"theme":"高频名词（环境/自然/科技类）","word":"temperature","pos":"n.","cn":"温度","ipa":"ˈtɛmpərəʧər","en":"The {{temperature}} dropped suddenly last night.","zh":"昨晚气温突然下降。"},{"day":5,"theme":"高频名词（环境/自然/科技类）","word":"planet","pos":"n.","cn":"行星","ipa":"ˈplænət","en":"Earth is the only {{planet}} we know that has life.","zh":"地球是我们所知唯一有生命的行星。"},{"day":5,"theme":"高频名词（环境/自然/科技类）","word":"universe","pos":"n.","cn":"宇宙","ipa":"ˈjunəˌvərs","en":"Scientists are still exploring the {{universe}}.","zh":"科学家们仍在探索宇宙。"},{"day":5,"theme":"高频名词（环境/自然/科技类）","word":"gravity","pos":"n.","cn":"重力","ipa":"ˈgrævɪti","en":"{{Gravity}} pulls everything toward the ground.","zh":"重力把一切都拉向地面。"},{"day":5,"theme":"高频名词（环境/自然/科技类）","word":"species","pos":"n.","cn":"物种","ipa":"ˈspiʃiz","en":"This island has many rare {{species}} of birds.","zh":"这个岛上有许多稀有的鸟类物种。"},{"day":5,"theme":"高频名词（环境/自然/科技类）","word":"wildlife","pos":"n.","cn":"野生动物","ipa":"ˈwaɪlˌdlaɪf","en":"The national park protects local {{wildlife}}.","zh":"这个国家公园保护当地的野生动物。"},{"day":5,"theme":"高频名词（环境/自然/科技类）","word":"ecosystem","pos":"n.","cn":"生态系统","ipa":"ˈikoʊˌsɪstəm","en":"Cutting down trees can damage the whole {{ecosystem}}.","zh":"砍伐树木会破坏整个生态系统。"},{"day":5,"theme":"高频名词（环境/自然/科技类）","word":"agriculture","pos":"n.","cn":"农业","ipa":"ˈægrɪˌkəlʧər","en":"{{Agriculture}} is very important in this region.","zh":"农业在这个地区非常重要。"},{"day":5,"theme":"高频名词（环境/自然/科技类）","word":"industry","pos":"n.","cn":"工业","ipa":"ˈɪndəstri","en":"The car {{industry}} has changed a lot in ten years.","zh":"汽车工业在十年间发生了很大变化。"},{"day":5,"theme":"高频名词（环境/自然/科技类）","word":"factory","pos":"n.","cn":"工厂","ipa":"ˈfæktəri","en":"My uncle works in a shoe {{factory}}.","zh":"我叔叔在一家鞋厂工作。"},{"day":5,"theme":"高频名词（环境/自然/科技类）","word":"pesticide","pos":"n.","cn":"杀虫剂","ipa":"ˈpɛstəˌsaɪd","en":"Farmers use less {{pesticide}} than before.","zh":"农民使用的杀虫剂比以前少了。"},{"day":5,"theme":"高频名词（环境/自然/科技类）","word":"greenhouse","pos":"n.","cn":"温室","ipa":"ˈgrinˌhaʊs","en":"Too much carbon dioxide causes the {{greenhouse}} effect.","zh":"过多的二氧化碳会导致温室效应。"},{"day":5,"theme":"高频名词（环境/自然/科技类）","word":"fuel","pos":"n.","cn":"燃料","ipa":"fjuəl","en":"This car uses less {{fuel}} than the old one.","zh":"这辆车比旧的那辆更省油。"},{"day":5,"theme":"高频名词（环境/自然/科技类）","word":"emission","pos":"n.","cn":"排放","ipa":"ɪˈmɪʃən","en":"Cars produce carbon {{emissions}} that harm the air.","zh":"汽车排放的碳会污染空气。"},{"day":5,"theme":"高频名词（环境/自然/科技类）","word":"renewable","pos":"adj.","cn":"可再生的","ipa":"riˈnuəbəl","en":"Wind is a {{renewable}} source of energy.","zh":"风是一种可再生的能源。"},{"day":5,"theme":"高频名词（环境/自然/科技类）","word":"solar","pos":"adj.","cn":"太阳能的","ipa":"ˈsoʊlər","en":"Our house uses {{solar}} power.","zh":"我们家使用太阳能。"},{"day":5,"theme":"高频名词（环境/自然/科技类）","word":"chemical","pos":"n./adj.","cn":"化学物质；化学的","ipa":"ˈkɛmɪkəl","en":"The lab is full of dangerous {{chemicals}}.","zh":"实验室里有很多危险的化学品。"},{"day":5,"theme":"高频名词（环境/自然/科技类）","word":"biology","pos":"n.","cn":"生物学","ipa":"baɪˈɑləʤi","en":"We are learning about plants in {{biology}} class.","zh":"我们在生物课上学习植物知识。"},{"day":5,"theme":"高频名词（环境/自然/科技类）","word":"physics","pos":"n.","cn":"物理学","ipa":"ˈfɪzɪks","en":"{{Physics}} explains how things move.","zh":"物理学解释事物如何运动。"},{"day":5,"theme":"高频名词（环境/自然/科技类）","word":"geography","pos":"n.","cn":"地理","ipa":"ʤiˈɑgrəfi","en":"In {{geography}} class, we studied mountains and rivers.","zh":"在地理课上,我们学习了山脉和河流。"},{"day":5,"theme":"高频名词（环境/自然/科技类）","word":"astronomy","pos":"n.","cn":"天文学","ipa":"əˈstrɑnəmi","en":"He became interested in {{astronomy}} after visiting the planetarium.","zh":"参观天文馆后,他对天文学产生了兴趣。"},{"day":5,"theme":"高频名词（环境/自然/科技类）","word":"satellite","pos":"n.","cn":"卫星","ipa":"ˈsætəˌlaɪt","en":"The {{satellite}} sends signals back to Earth.","zh":"这颗卫星向地球发送信号。"},{"day":5,"theme":"高频名词（环境/自然/科技类）","word":"laboratory","pos":"n.","cn":"实验室","ipa":"ˈlæbrəˌtɔri","en":"Students wore goggles in the {{laboratory}}.","zh":"学生们在实验室里戴着护目镜。"},{"day":5,"theme":"高频名词（环境/自然/科技类）","word":"recycle","pos":"v.","cn":"回收利用","ipa":"riˈsaɪkəl","en":"We should {{recycle}} paper and plastic bottles.","zh":"我们应该回收利用纸张和塑料瓶。"},{"day":6,"theme":"高频形容词（性格/情感类）","word":"confident","pos":"adj.","cn":"自信的","ipa":"ˈkɑnfədənt","en":"She felt {{confident}} before the speech contest.","zh":"演讲比赛前她感到很自信。"},{"day":6,"theme":"高频形容词（性格/情感类）","word":"friendly","pos":"adj.","cn":"友好的","ipa":"ˈfrɛndli","en":"Our new neighbor is very {{friendly}}.","zh":"我们的新邻居非常友好。"},{"day":6,"theme":"高频形容词（性格/情感类）","word":"honest","pos":"adj.","cn":"诚实的","ipa":"ˈɑnəst","en":"You should always be {{honest}} with your friends.","zh":"你应该一直对朋友诚实。"},{"day":6,"theme":"高频形容词（性格/情感类）","word":"patient","pos":"adj.","cn":"有耐心的","ipa":"ˈpeɪʃənt","en":"Good teachers are usually very {{patient}}.","zh":"好老师通常都很有耐心。"},{"day":6,"theme":"高频形容词（性格/情感类）","word":"polite","pos":"adj.","cn":"礼貌的","ipa":"pəˈlaɪt","en":"It's important to be {{polite}} to elderly people.","zh":"对老年人要有礼貌很重要。"},{"day":6,"theme":"高频形容词（性格/情感类）","word":"generous","pos":"adj.","cn":"慷慨的","ipa":"ˈʤɛnərəs","en":"My grandfather is very {{generous}} with his time.","zh":"我爷爷非常慷慨地付出时间。"},{"day":6,"theme":"高频形容词（性格/情感类）","word":"humble","pos":"adj.","cn":"谦逊的","ipa":"ˈhəmbəl","en":"Despite his success, he stays {{humble}}.","zh":"尽管很成功,他依然很谦逊。"},{"day":6,"theme":"高频形容词（性格/情感类）","word":"brave","pos":"adj.","cn":"勇敢的","ipa":"breɪv","en":"The firefighter was very {{brave}} during the fire.","zh":"那位消防员在火灾中非常勇敢。"},{"day":6,"theme":"高频形容词（性格/情感类）","word":"cautious","pos":"adj.","cn":"谨慎的","ipa":"ˈkɔʃəs","en":"Be {{cautious}} when crossing a busy street.","zh":"过繁忙的马路时要谨慎。"},{"day":6,"theme":"高频形容词（性格/情感类）","word":"careless","pos":"adj.","cn":"粗心的","ipa":"ˈkɛrlɛs","en":"A {{careless}} mistake cost him the game.","zh":"一个粗心的错误让他输掉了比赛。"},{"day":6,"theme":"高频形容词（性格/情感类）","word":"careful","pos":"adj.","cn":"仔细的","ipa":"ˈkɛrfəl","en":"Please be {{careful}} with the glass cups.","zh":"请小心那些玻璃杯。"},{"day":6,"theme":"高频形容词（性格/情感类）","word":"active","pos":"adj.","cn":"积极的","ipa":"ˈæktɪv","en":"My little brother is very {{active}} and loves sports.","zh":"我弟弟很活跃,喜欢运动。"},{"day":6,"theme":"高频形容词（性格/情感类）","word":"passive","pos":"adj.","cn":"消极的，被动的","ipa":"ˈpæsɪv","en":"He seemed {{passive}} during the group discussion.","zh":"他在小组讨论中显得很消极。"},{"day":6,"theme":"高频形容词（性格/情感类）","word":"energetic","pos":"adj.","cn":"精力充沛的","ipa":"ˌɛnərˈʤɛtɪk","en":"The children were {{energetic}} all day at the park.","zh":"孩子们在公园里一整天都精力充沛。"},{"day":6,"theme":"高频形容词（性格/情感类）","word":"lazy","pos":"adj.","cn":"懒惰的","ipa":"ˈleɪzi","en":"Don't be {{lazy}}; finish your homework first.","zh":"别偷懒,先把作业做完。"},{"day":6,"theme":"高频形容词（性格/情感类）","word":"ambitious","pos":"adj.","cn":"有抱负的","ipa":"æmˈbɪʃəs","en":"She has an {{ambitious}} plan to start her own business.","zh":"她有一个雄心勃勃的创业计划。"},{"day":6,"theme":"高频形容词（性格/情感类）","word":"creative","pos":"adj.","cn":"有创造力的","ipa":"kriˈeɪtɪv","en":"He came up with a very {{creative}} idea for the poster.","zh":"他为海报想出了一个很有创意的点子。"},{"day":6,"theme":"高频形容词（性格/情感类）","word":"cooperative","pos":"adj.","cn":"合作的","ipa":"koʊˈɑpərˌeɪtɪv","en":"All the students were {{cooperative}} during the group project.","zh":"在小组项目中,所有学生都很配合。"},{"day":6,"theme":"高频形容词（性格/情感类）","word":"independent","pos":"adj.","cn":"独立的","ipa":"ˌɪndɪˈpɛndənt","en":"She became more {{independent}} after moving to a new city.","zh":"搬到新城市后,她变得更加独立。"},{"day":6,"theme":"高频形容词（性格/情感类）","word":"responsible","pos":"adj.","cn":"负责的","ipa":"riˈspɑnsəbəl","en":"As the class monitor, he is very {{responsible}}.","zh":"作为班长,他很有责任心。"},{"day":6,"theme":"高频形容词（性格/情感类）","word":"reliable","pos":"adj.","cn":"可靠的","ipa":"rɪˈlaɪəbəl","en":"You can always trust him; he is very {{reliable}}.","zh":"你总能信任他,他非常可靠。"},{"day":6,"theme":"高频形容词（性格/情感类）","word":"sensitive","pos":"adj.","cn":"敏感的","ipa":"ˈsɛnsɪtɪv","en":"She is {{sensitive}} to other people's feelings.","zh":"她对别人的感受很敏感。"},{"day":6,"theme":"高频形容词（性格/情感类）","word":"stubborn","pos":"adj.","cn":"固执的","ipa":"ˈstəbərn","en":"My little sister is too {{stubborn}} to change her mind.","zh":"我妹妹太固执了,不肯改变主意。"},{"day":6,"theme":"高频形容词（性格/情感类）","word":"optimistic","pos":"adj.","cn":"乐观的","ipa":"ˌɑptɪˈmɪstɪk","en":"He stayed {{optimistic}} even after losing the match.","zh":"即使输了比赛,他依然很乐观。"},{"day":6,"theme":"高频形容词（性格/情感类）","word":"pessimistic","pos":"adj.","cn":"悲观的","ipa":"ˌpɛsəˈmɪstɪk","en":"Try not to be {{pessimistic}} about the future.","zh":"尽量不要对未来太悲观。"},{"day":6,"theme":"高频形容词（性格/情感类）","word":"cheerful","pos":"adj.","cn":"开朗的","ipa":"ˈʧɪrfəl","en":"She has a {{cheerful}} smile every morning.","zh":"她每天早上都带着开朗的笑容。"},{"day":6,"theme":"高频形容词（性格/情感类）","word":"anxious","pos":"adj.","cn":"焦虑的","ipa":"ˈæŋʃəs","en":"I felt {{anxious}} before the exam results came out.","zh":"考试成绩出来之前我感到很焦虑。"},{"day":6,"theme":"高频形容词（性格/情感类）","word":"nervous","pos":"adj.","cn":"紧张的","ipa":"ˈnərvəs","en":"He was {{nervous}} before his first speech.","zh":"第一次演讲前他很紧张。"},{"day":6,"theme":"高频形容词（性格/情感类）","word":"calm","pos":"adj.","cn":"冷静的","ipa":"kɑm","en":"Try to stay {{calm}} during the test.","zh":"考试时尽量保持冷静。"},{"day":6,"theme":"高频形容词（性格/情感类）","word":"curious","pos":"adj.","cn":"好奇的","ipa":"ˈkjʊriəs","en":"Children are naturally {{curious}} about the world.","zh":"孩子们对世界天生充满好奇。"},{"day":6,"theme":"高频形容词（性格/情感类）","word":"enthusiastic","pos":"adj.","cn":"热情的","ipa":"ɪnˌθuziˈæstɪk","en":"The fans were {{enthusiastic}} about the concert.","zh":"粉丝们对这场演唱会非常热情。"},{"day":6,"theme":"高频形容词（性格/情感类）","word":"modest","pos":"adj.","cn":"谦虚的","ipa":"ˈmɑdəst","en":"He is {{modest}} about his achievements.","zh":"他对自己的成就很谦虚。"},{"day":6,"theme":"高频形容词（性格/情感类）","word":"proud","pos":"adj.","cn":"骄傲的","ipa":"praʊd","en":"My parents are {{proud}} of my progress.","zh":"我父母为我的进步感到骄傲。"},{"day":6,"theme":"高频形容词（性格/情感类）","word":"shy","pos":"adj.","cn":"害羞的","ipa":"ʃaɪ","en":"The new student was too {{shy}} to speak in class.","zh":"新同学太害羞了,不敢在课堂上发言。"},{"day":6,"theme":"高频形容词（性格/情感类）","word":"talented","pos":"adj.","cn":"有天赋的","ipa":"ˈtæləntɪd","en":"She is a {{talented}} piano player.","zh":"她是一位有天赋的钢琴演奏者。"},{"day":7,"theme":"高频形容词（描述性/学术类）","word":"significant","pos":"adj.","cn":"重要的，显著的","ipa":"sɪgˈnɪfɪkənt","en":"There was a {{significant}} improvement in his grades.","zh":"他的成绩有了显著的提高。"},{"day":7,"theme":"高频形容词（描述性/学术类）","word":"essential","pos":"adj.","cn":"必要的","ipa":"ɛˈsɛnʃəl","en":"Water is {{essential}} for all living things.","zh":"水对所有生物都是必不可少的。"},{"day":7,"theme":"高频形容词（描述性/学术类）","word":"obvious","pos":"adj.","cn":"明显的","ipa":"ˈɑbviəs","en":"It's {{obvious}} that she worked very hard on this project.","zh":"很明显她在这个项目上很努力。"},{"day":7,"theme":"高频形容词（描述性/学术类）","word":"apparent","pos":"adj.","cn":"明显的；表面上的","ipa":"əˈpɛrənt","en":"It became {{apparent}} that the plan wouldn't work.","zh":"很明显这个计划行不通。"},{"day":7,"theme":"高频形容词（描述性/学术类）","word":"definite","pos":"adj.","cn":"明确的","ipa":"ˈdɛfənət","en":"We don't have a {{definite}} answer yet.","zh":"我们还没有明确的答案。"},{"day":7,"theme":"高频形容词（描述性/学术类）","word":"particular","pos":"adj.","cn":"特定的","ipa":"ˌpɑˈtɪkjələr","en":"This {{particular}} book is my favorite.","zh":"这本特定的书是我最喜欢的。"},{"day":7,"theme":"高频形容词（描述性/学术类）","word":"specific","pos":"adj.","cn":"具体的","ipa":"spɪˈsɪfɪk","en":"Can you give me a more {{specific}} example?","zh":"你能给我一个更具体的例子吗?"},{"day":7,"theme":"高频形容词（描述性/学术类）","word":"general","pos":"adj.","cn":"一般的","ipa":"ˈʤɛnərəl","en":"In {{general}}, students here study very hard.","zh":"总体来说,这里的学生学习都很努力。"},{"day":7,"theme":"高频形容词（描述性/学术类）","word":"typical","pos":"adj.","cn":"典型的","ipa":"ˈtɪpɪkəl","en":"A {{typical}} school day starts at eight o'clock.","zh":"典型的一天学校生活从八点开始。"},{"day":7,"theme":"高频形容词（描述性/学术类）","word":"common","pos":"adj.","cn":"常见的","ipa":"ˈkɑmən","en":"It's {{common}} for students to feel nervous before exams.","zh":"学生在考试前感到紧张是很常见的。"},{"day":7,"theme":"高频形容词（描述性/学术类）","word":"rare","pos":"adj.","cn":"罕见的","ipa":"rɛr","en":"Snow is {{rare}} in this part of the country.","zh":"这个地区很少下雪。"},{"day":7,"theme":"高频形容词（描述性/学术类）","word":"unique","pos":"adj.","cn":"独特的","ipa":"juˈnik","en":"Every person's fingerprint is {{unique}}.","zh":"每个人的指纹都是独一无二的。"},{"day":7,"theme":"高频形容词（描述性/学术类）","word":"various","pos":"adj.","cn":"各种各样的","ipa":"ˈvɛriəs","en":"The shop sells {{various}} kinds of fruit.","zh":"这家店出售各种各样的水果。"},{"day":7,"theme":"高频形容词（描述性/学术类）","word":"similar","pos":"adj.","cn":"相似的","ipa":"ˈsɪmələr","en":"Her handwriting is {{similar}} to her sister's.","zh":"她的字迹和她姐姐的很相似。"},{"day":7,"theme":"高频形容词（描述性/学术类）","word":"identical","pos":"adj.","cn":"完全相同的","ipa":"aɪˈdɛntɪkəl","en":"The twins wore {{identical}} dresses.","zh":"这对双胞胎穿着一模一样的裙子。"},{"day":7,"theme":"高频形容词（描述性/学术类）","word":"appropriate","pos":"adj.","cn":"恰当的","ipa":"əˈproʊpriˌeɪt","en":"Please wear {{appropriate}} clothes for the interview.","zh":"请穿合适的衣服去面试。"},{"day":7,"theme":"高频形容词（描述性/学术类）","word":"suitable","pos":"adj.","cn":"合适的","ipa":"ˈsutəbəl","en":"This book is {{suitable}} for young readers.","zh":"这本书适合年轻读者。"},{"day":7,"theme":"高频形容词（描述性/学术类）","word":"effective","pos":"adj.","cn":"有效的","ipa":"ˈifɛktɪv","en":"Exercise is an {{effective}} way to reduce stress.","zh":"运动是减压的有效方式。"},{"day":7,"theme":"高频形容词（描述性/学术类）","word":"efficient","pos":"adj.","cn":"高效的","ipa":"ɪˈfɪʃənt","en":"The new system is much more {{efficient}} than the old one.","zh":"新系统比旧系统高效得多。"},{"day":7,"theme":"高频形容词（描述性/学术类）","word":"valuable","pos":"adj.","cn":"有价值的","ipa":"ˈvæljəbəl","en":"Time is a {{valuable}} thing; don't waste it.","zh":"时间是宝贵的,不要浪费。"},{"day":7,"theme":"高频形容词（描述性/学术类）","word":"useful","pos":"adj.","cn":"有用的","ipa":"ˈjusfəl","en":"This app is very {{useful}} for learning English words.","zh":"这个应用对学习英语单词很有用。"},{"day":7,"theme":"高频形容词（描述性/学术类）","word":"useless","pos":"adj.","cn":"无用的","ipa":"ˈjusləs","en":"Without electricity, the machine is {{useless}}.","zh":"没有电,这台机器就没用了。"},{"day":7,"theme":"高频形容词（描述性/学术类）","word":"harmful","pos":"adj.","cn":"有害的","ipa":"ˈhɑrmfəl","en":"Too much sugar can be {{harmful}} to your teeth.","zh":"过多的糖对牙齿有害。"},{"day":7,"theme":"高频形容词（描述性/学术类）","word":"beneficial","pos":"adj.","cn":"有益的","ipa":"ˌbɛnəˈfɪʃəl","en":"Reading every day is {{beneficial}} for your mind.","zh":"每天阅读对头脑有益。"},{"day":7,"theme":"高频形容词（描述性/学术类）","word":"positive","pos":"adj.","cn":"积极的","ipa":"ˈpɑzətɪv","en":"Try to stay {{positive}} even when things go wrong.","zh":"即使事情出错,也要尽量保持积极。"},{"day":7,"theme":"高频形容词（描述性/学术类）","word":"negative","pos":"adj.","cn":"消极的","ipa":"ˈnɛgətɪv","en":"Don't let one {{negative}} comment ruin your day.","zh":"别让一条负面评论毁了你的一天。"},{"day":7,"theme":"高频形容词（描述性/学术类）","word":"potential","pos":"adj./n.","cn":"潜在的；潜力","ipa":"pəˈtɛnʃəl","en":"The coach saw great {{potential}} in the young player.","zh":"教练在这位年轻球员身上看到了巨大的潜力。"},{"day":7,"theme":"高频形容词（描述性/学术类）","word":"practical","pos":"adj.","cn":"实际的","ipa":"ˈpræktɪkəl","en":"We need a more {{practical}} solution to this problem.","zh":"我们需要一个更实际的方法来解决这个问题。"},{"day":7,"theme":"高频形容词（描述性/学术类）","word":"theoretical","pos":"adj.","cn":"理论的","ipa":"ˌθiərˈɛtɪkəl","en":"This is more of a {{theoretical}} question than a real problem.","zh":"这更像是一个理论问题,而不是实际问题。"},{"day":7,"theme":"高频形容词（描述性/学术类）","word":"logical","pos":"adj.","cn":"符合逻辑的","ipa":"ˈlɑʤɪkəl","en":"Her explanation was clear and {{logical}}.","zh":"她的解释清楚又符合逻辑。"},{"day":7,"theme":"高频形容词（描述性/学术类）","word":"reasonable","pos":"adj.","cn":"合理的","ipa":"ˈrizənəbəl","en":"The price of this bike is quite {{reasonable}}.","zh":"这辆自行车的价格相当合理。"},{"day":7,"theme":"高频形容词（描述性/学术类）","word":"remarkable","pos":"adj.","cn":"非凡的","ipa":"rɪˈmɑrkəbəl","en":"She made {{remarkable}} progress in just one month.","zh":"她仅仅一个月就取得了非凡的进步。"},{"day":7,"theme":"高频形容词（描述性/学术类）","word":"extraordinary","pos":"adj.","cn":"不寻常的","ipa":"ˌɛkstrəˈɔrdəˌnɛri","en":"He has an {{extraordinary}} talent for music.","zh":"他在音乐方面有非凡的天赋。"},{"day":7,"theme":"高频形容词（描述性/学术类）","word":"ordinary","pos":"adj.","cn":"普通的","ipa":"ˈɔrdəˌnɛri","en":"It was just an {{ordinary}} day until the surprise happened.","zh":"在惊喜发生之前,这只是普通的一天。"},{"day":7,"theme":"高频形容词（描述性/学术类）","word":"ideal","pos":"adj./n.","cn":"理想的；理想","ipa":"aɪˈdil","en":"This weather is {{ideal}} for a picnic.","zh":"这样的天气非常适合野餐。"},{"day":8,"theme":"高频名词（社会/经济类）","word":"society","pos":"n.","cn":"社会","ipa":"soʊˈsaɪɪti","en":"Everyone has a role to play in {{society}}.","zh":"每个人在社会中都扮演着一定的角色。"},{"day":8,"theme":"高频名词（社会/经济类）","word":"economy","pos":"n.","cn":"经济","ipa":"ɪˈkɑnəmi","en":"The country's {{economy}} is growing quickly.","zh":"这个国家的经济增长很快。"},{"day":8,"theme":"高频名词（社会/经济类）","word":"government","pos":"n.","cn":"政府","ipa":"ˈgəvərnmənt","en":"The {{government}} built a new hospital in our city.","zh":"政府在我们城市建了一所新医院。"},{"day":8,"theme":"高频名词（社会/经济类）","word":"policy","pos":"n.","cn":"政策","ipa":"ˈpɑləsi","en":"The school introduced a new {{policy}} on mobile phones.","zh":"学校出台了一项关于手机使用的新政策。"},{"day":8,"theme":"高频名词（社会/经济类）","word":"population","pos":"n.","cn":"人口","ipa":"ˌpɑpjəˈleɪʃən","en":"The {{population}} of this city has grown a lot.","zh":"这座城市的人口增长了很多。"},{"day":8,"theme":"高频名词（社会/经济类）","word":"culture","pos":"n.","cn":"文化","ipa":"ˈkəlʧər","en":"I love learning about different {{cultures}}.","zh":"我喜欢了解不同的文化。"},{"day":8,"theme":"高频名词（社会/经济类）","word":"tradition","pos":"n.","cn":"传统","ipa":"trəˈdɪʃən","en":"It's a family {{tradition}} to have dumplings on New Year's Eve.","zh":"除夕吃饺子是我们的家庭传统。"},{"day":8,"theme":"高频名词（社会/经济类）","word":"custom","pos":"n.","cn":"习俗","ipa":"ˈkəstəm","en":"Bowing is a common {{custom}} in Japan.","zh":"鞠躬是日本的一种常见习俗。"},{"day":8,"theme":"高频名词（社会/经济类）","word":"generation","pos":"n.","cn":"一代人","ipa":"ˌʤɛnərˈeɪʃən","en":"My grandparents' {{generation}} lived a very different life.","zh":"我祖父母那一代人的生活方式非常不同。"},{"day":8,"theme":"高频名词（社会/经济类）","word":"community","pos":"n.","cn":"社区","ipa":"kəmˈjunɪti","en":"Our {{community}} organized a clean-up day.","zh":"我们社区组织了一次清洁日活动。"},{"day":8,"theme":"高频名词（社会/经济类）","word":"citizen","pos":"n.","cn":"公民","ipa":"ˈsɪtɪzən","en":"Every {{citizen}} should follow the law.","zh":"每个公民都应该遵守法律。"},{"day":8,"theme":"高频名词（社会/经济类）","word":"nation","pos":"n.","cn":"国家","ipa":"ˈneɪʃən","en":"This holiday is celebrated across the {{nation}}.","zh":"这个节日在全国范围内庆祝。"},{"day":8,"theme":"高频名词（社会/经济类）","word":"region","pos":"n.","cn":"地区","ipa":"ˈriʤən","en":"Rice grows well in this {{region}}.","zh":"这个地区很适合种水稻。"},{"day":8,"theme":"高频名词（社会/经济类）","word":"district","pos":"n.","cn":"区，行政区","ipa":"ˈdɪstrɪkt","en":"We live in a quiet {{district}} of the city.","zh":"我们住在这座城市一个安静的区。"},{"day":8,"theme":"高频名词（社会/经济类）","word":"urban","pos":"adj.","cn":"城市的","ipa":"ˈərbən","en":"{{Urban}} areas usually have more traffic than the countryside.","zh":"城市地区通常比乡村交通更拥堵。"},{"day":8,"theme":"高频名词（社会/经济类）","word":"rural","pos":"adj.","cn":"乡村的","ipa":"ˈrʊrəl","en":"Life in {{rural}} areas can be much slower and quieter.","zh":"乡村地区的生活可能更加悠闲安静。"},{"day":8,"theme":"高频名词（社会/经济类）","word":"poverty","pos":"n.","cn":"贫穷","ipa":"ˈpɑvərti","en":"The charity works to reduce {{poverty}} in the region.","zh":"这家慈善机构致力于减少该地区的贫困。"},{"day":8,"theme":"高频名词（社会/经济类）","word":"wealth","pos":"n.","cn":"财富","ipa":"wɛlθ","en":"True happiness doesn't only come from {{wealth}}.","zh":"真正的幸福并不只来自财富。"},{"day":8,"theme":"高频名词（社会/经济类）","word":"income","pos":"n.","cn":"收入","ipa":"ˈɪnˌkəm","en":"My parents' {{income}} increased this year.","zh":"我父母今年的收入增加了。"},{"day":8,"theme":"高频名词（社会/经济类）","word":"tax","pos":"n.","cn":"税","ipa":"tæks","en":"The government uses {{tax}} money to build roads.","zh":"政府用税收来修路。"},{"day":8,"theme":"高频名词（社会/经济类）","word":"budget","pos":"n.","cn":"预算","ipa":"ˈbəʤɪt","en":"We made a {{budget}} for our summer trip.","zh":"我们为暑假旅行做了预算。"},{"day":8,"theme":"高频名词（社会/经济类）","word":"trade","pos":"n./v.","cn":"贸易","ipa":"treɪd","en":"The two countries have a long history of {{trade}}.","zh":"这两个国家有着悠久的贸易历史。"},{"day":8,"theme":"高频名词（社会/经济类）","word":"market","pos":"n.","cn":"市场","ipa":"ˈmɑrkɪt","en":"My mom buys fresh vegetables at the {{market}}.","zh":"我妈妈在市场买新鲜蔬菜。"},{"day":8,"theme":"高频名词（社会/经济类）","word":"consumer","pos":"n.","cn":"消费者","ipa":"kənˈsumər","en":"Companies try to understand what {{consumers}} want.","zh":"公司试图了解消费者想要什么。"},{"day":8,"theme":"高频名词（社会/经济类）","word":"product","pos":"n.","cn":"产品","ipa":"ˈprɑdəkt","en":"This shop sells many kinds of skin-care {{products}}.","zh":"这家店出售多种护肤产品。"},{"day":8,"theme":"高频名词（社会/经济类）","word":"service","pos":"n.","cn":"服务","ipa":"ˈsərvɪs","en":"The restaurant is famous for its excellent {{service}}.","zh":"这家餐厅以出色的服务而闻名。"},{"day":8,"theme":"高频名词（社会/经济类）","word":"employment","pos":"n.","cn":"就业","ipa":"ɪmˈplɔɪmənt","en":"The new factory created many {{employment}} opportunities.","zh":"这家新工厂创造了很多就业机会。"},{"day":8,"theme":"高频名词（社会/经济类）","word":"unemployment","pos":"n.","cn":"失业","ipa":"ˌənɪmˈplɔɪmənt","en":"{{Unemployment}} was a serious problem during that period.","zh":"在那段时期,失业是一个严重的问题。"},{"day":8,"theme":"高频名词（社会/经济类）","word":"salary","pos":"n.","cn":"薪水","ipa":"ˈsæləri","en":"He got a higher {{salary}} after the promotion.","zh":"升职后他的薪水更高了。"},{"day":8,"theme":"高频名词（社会/经济类）","word":"wage","pos":"n.","cn":"工资","ipa":"weɪʤ","en":"The minimum {{wage}} went up this year.","zh":"最低工资今年上涨了。"},{"day":8,"theme":"高频名词（社会/经济类）","word":"profit","pos":"n.","cn":"利润","ipa":"ˈprɑfɪt","en":"The company made a big {{profit}} this year.","zh":"这家公司今年获得了丰厚的利润。"},{"day":8,"theme":"高频名词（社会/经济类）","word":"loss","pos":"n.","cn":"损失","ipa":"lɔs","en":"The store suffered a big {{loss}} last month.","zh":"这家店上个月遭受了很大的损失。"},{"day":8,"theme":"高频名词（社会/经济类）","word":"investment","pos":"n.","cn":"投资","ipa":"ˌɪnˈvɛstmənt","en":"Education is the best {{investment}} for your future.","zh":"教育是对你未来最好的投资。"},{"day":8,"theme":"高频名词（社会/经济类）","word":"currency","pos":"n.","cn":"货币","ipa":"ˈkərənsi","en":"The {{currency}} of Japan is the yen.","zh":"日本的货币是日元。"},{"day":8,"theme":"高频名词（社会/经济类）","word":"reform","pos":"n./v.","cn":"改革","ipa":"rɪˈfɔrm","en":"The school carried out a {{reform}} of its exam system.","zh":"学校对考试制度进行了改革。"},{"day":9,"theme":"高频动词（分析/研究类）","word":"analyze","pos":"v.","cn":"分析","ipa":"ˈænəˌlaɪz","en":"We need to {{analyze}} the data before making a decision.","zh":"我们需要先分析数据,再做决定。"},{"day":9,"theme":"高频动词（分析/研究类）","word":"assume","pos":"v.","cn":"假设，认为","ipa":"əˈsum","en":"Don't {{assume}} you know the answer without checking.","zh":"不要不检查就假设你知道答案。"},{"day":9,"theme":"高频动词（分析/研究类）","word":"define","pos":"v.","cn":"定义","ipa":"dɪˈfaɪn","en":"Can you {{define}} this word for me?","zh":"你能给我解释一下这个词的定义吗?"},{"day":9,"theme":"高频动词（分析/研究类）","word":"demonstrate","pos":"v.","cn":"证明，演示","ipa":"ˈdɛmənˌstreɪt","en":"The teacher will {{demonstrate}} the experiment first.","zh":"老师会先演示这个实验。"},{"day":9,"theme":"高频动词（分析/研究类）","word":"determine","pos":"v.","cn":"决定，确定","ipa":"dɪˈtərmən","en":"The test results will {{determine}} your class level.","zh":"测试结果将决定你的班级水平。"},{"day":9,"theme":"高频动词（分析/研究类）","word":"distinguish","pos":"v.","cn":"区分","ipa":"dɪˈstɪŋgwɪʃ","en":"It's hard to {{distinguish}} between the twins.","zh":"很难区分这对双胞胎。"},{"day":9,"theme":"高频动词（分析/研究类）","word":"emphasize","pos":"v.","cn":"强调","ipa":"ˈɛmfəˌsaɪz","en":"The coach {{emphasized}} the importance of teamwork.","zh":"教练强调了团队合作的重要性。"},{"day":9,"theme":"高频动词（分析/研究类）","word":"estimate","pos":"v./n.","cn":"估计","ipa":"ˈɛstəˌmeɪt","en":"Can you {{estimate}} how long the trip will take?","zh":"你能估计一下这趟旅行需要多长时间吗?"},{"day":9,"theme":"高频动词（分析/研究类）","word":"evaluate","pos":"v.","cn":"评价","ipa":"ɪˈvæljuˌeɪt","en":"Teachers {{evaluate}} students' work carefully.","zh":"老师认真评估学生的作业。"},{"day":9,"theme":"高频动词（分析/研究类）","word":"examine","pos":"v.","cn":"检查，审查","ipa":"ɪgˈzæmɪn","en":"The doctor will {{examine}} your eyes today.","zh":"医生今天会检查你的眼睛。"},{"day":9,"theme":"高频动词（分析/研究类）","word":"exist","pos":"v.","cn":"存在","ipa":"ɪgˈzɪst","en":"Many rare animals still {{exist}} in this forest.","zh":"许多珍稀动物仍然存在于这片森林中。"},{"day":9,"theme":"高频动词（分析/研究类）","word":"expand","pos":"v.","cn":"扩大","ipa":"ɪkˈspænd","en":"The company plans to {{expand}} into new markets.","zh":"这家公司计划扩展到新市场。"},{"day":9,"theme":"高频动词（分析/研究类）","word":"expose","pos":"v.","cn":"暴露，使接触","ipa":"ɪkˈspoʊz","en":"Don't {{expose}} your skin to strong sunlight for too long.","zh":"不要让皮肤长时间暴露在强烈的阳光下。"},{"day":9,"theme":"高频动词（分析/研究类）","word":"extend","pos":"v.","cn":"延伸，延长","ipa":"ɪkˈstɛnd","en":"The library decided to {{extend}} its opening hours.","zh":"图书馆决定延长开放时间。"},{"day":9,"theme":"高频动词（分析/研究类）","word":"focus","pos":"v./n.","cn":"集中，聚焦","ipa":"ˈfoʊkɪs","en":"Please {{focus}} on your homework, not the TV.","zh":"请专心做作业,不要看电视。"},{"day":9,"theme":"高频动词（分析/研究类）","word":"forecast","pos":"v./n.","cn":"预测","ipa":"ˈfɔrˌkæst","en":"The weather {{forecast}} says it will rain tomorrow.","zh":"天气预报说明天会下雨。"},{"day":9,"theme":"高频动词（分析/研究类）","word":"function","pos":"n./v.","cn":"功能；起作用","ipa":"ˈfəŋkʃən","en":"The main {{function}} of this app is to help you learn words.","zh":"这个应用的主要功能是帮助你学单词。"},{"day":9,"theme":"高频动词（分析/研究类）","word":"gain","pos":"v.","cn":"获得","ipa":"geɪn","en":"You can {{gain}} confidence by practicing more.","zh":"多练习可以获得自信。"},{"day":9,"theme":"高频动词（分析/研究类）","word":"generate","pos":"v.","cn":"产生","ipa":"ˈʤɛnərˌeɪt","en":"Wind turbines {{generate}} electricity.","zh":"风力涡轮机能发电。"},{"day":9,"theme":"高频动词（分析/研究类）","word":"identify","pos":"v.","cn":"识别，确认","ipa":"aɪˈdɛntəˌfaɪ","en":"Can you {{identify}} the bird in this picture?","zh":"你能认出图片里的这种鸟吗?"},{"day":9,"theme":"高频动词（分析/研究类）","word":"illustrate","pos":"v.","cn":"说明，举例说明","ipa":"ˈɪləˌstreɪt","en":"This example {{illustrates}} the idea very clearly.","zh":"这个例子非常清楚地说明了这个观点。"},{"day":9,"theme":"高频动词（分析/研究类）","word":"imply","pos":"v.","cn":"暗示","ipa":"ˌɪmˈplaɪ","en":"Her silence seemed to {{imply}} that she disagreed.","zh":"她的沉默似乎暗示着她不同意。"},{"day":9,"theme":"高频动词（分析/研究类）","word":"indicate","pos":"v.","cn":"表明","ipa":"ˈɪndəˌkeɪt","en":"A high fever may {{indicate}} an infection.","zh":"高烧可能表明存在感染。"},{"day":9,"theme":"高频动词（分析/研究类）","word":"influence","pos":"v./n.","cn":"影响","ipa":"ˈɪnfluəns","en":"Good friends can {{influence}} you in a positive way.","zh":"好朋友能对你产生积极的影响。"},{"day":9,"theme":"高频动词（分析/研究类）","word":"inform","pos":"v.","cn":"通知，告知","ipa":"ˌɪnˈfɔrm","en":"Please {{inform}} me if the plan changes.","zh":"如果计划有变,请通知我。"},{"day":9,"theme":"高频动词（分析/研究类）","word":"initiate","pos":"v.","cn":"发起","ipa":"ˌɪˈnɪʃiˌeɪt","en":"The students {{initiated}} a project to clean the park.","zh":"学生们发起了一个清洁公园的项目。"},{"day":9,"theme":"高频动词（分析/研究类）","word":"inspire","pos":"v.","cn":"激励，启发","ipa":"ˌɪnˈspaɪr","en":"Her story {{inspired}} me to work harder.","zh":"她的故事激励我更加努力。"},{"day":9,"theme":"高频动词（分析/研究类）","word":"install","pos":"v.","cn":"安装","ipa":"ˌɪnˈstɔl","en":"My dad helped me {{install}} the new software.","zh":"我爸爸帮我安装了新软件。"},{"day":9,"theme":"高频动词（分析/研究类）","word":"integrate","pos":"v.","cn":"使一体化，整合","ipa":"ˈɪnəˌgreɪt","en":"The school tries to {{integrate}} art into every subject.","zh":"学校尝试把艺术融入到每个学科中。"},{"day":9,"theme":"高频动词（分析/研究类）","word":"interpret","pos":"v.","cn":"解释，翻译","ipa":"ˌɪnˈtərprət","en":"It's not easy to {{interpret}} his strange behavior.","zh":"他奇怪的行为不容易解释。"},{"day":9,"theme":"高频动词（分析/研究类）","word":"investigate","pos":"v.","cn":"调查","ipa":"ˌɪnˈvɛstəˌgeɪt","en":"The police are {{investigating}} the missing bike case.","zh":"警察正在调查自行车失窃案。"},{"day":9,"theme":"高频动词（分析/研究类）","word":"involve","pos":"v.","cn":"涉及","ipa":"ˌɪnˈvɑlv","en":"The plan will {{involve}} the whole class.","zh":"这个计划将涉及全班同学。"},{"day":9,"theme":"高频动词（分析/研究类）","word":"justify","pos":"v.","cn":"证明...正当","ipa":"ˈʤəstəˌfaɪ","en":"He couldn't {{justify}} being late again.","zh":"他无法为再次迟到找理由。"},{"day":9,"theme":"高频动词（分析/研究类）","word":"maintain","pos":"v.","cn":"维持，保养","ipa":"meɪnˈteɪn","en":"It's important to {{maintain}} good habits every day.","zh":"每天保持良好的习惯很重要。"},{"day":9,"theme":"高频动词（分析/研究类）","word":"manage","pos":"v.","cn":"管理；设法做到","ipa":"ˈmænɪʤ","en":"She can {{manage}} her time well between study and sports.","zh":"她能很好地平衡学习和运动的时间。"},{"day":10,"theme":"高频动词（应对/处理类）","word":"measure","pos":"v./n.","cn":"测量；措施","ipa":"ˈmɛʒər","en":"Please {{measure}} the length of the table.","zh":"请测量一下这张桌子的长度。"},{"day":10,"theme":"高频动词（应对/处理类）","word":"modify","pos":"v.","cn":"修改","ipa":"ˈmɑdəˌfaɪ","en":"We had to {{modify}} our plan because of the rain.","zh":"由于下雨,我们不得不修改计划。"},{"day":10,"theme":"高频动词（应对/处理类）","word":"monitor","pos":"v./n.","cn":"监控","ipa":"ˈmɑnətər","en":"Teachers {{monitor}} students' progress every month.","zh":"老师每个月监控学生的学习进度。"},{"day":10,"theme":"高频动词（应对/处理类）","word":"motivate","pos":"v.","cn":"激励","ipa":"ˈmoʊtəˌveɪt","en":"Good grades can {{motivate}} students to study harder.","zh":"好成绩能激励学生更努力学习。"},{"day":10,"theme":"高频动词（应对/处理类）","word":"negotiate","pos":"v.","cn":"谈判","ipa":"nɪˈgoʊʃiˌeɪt","en":"The two sides met to {{negotiate}} a solution.","zh":"双方会面协商解决方案。"},{"day":10,"theme":"高频动词（应对/处理类）","word":"observe","pos":"v.","cn":"观察","ipa":"əbˈzərv","en":"Scientists {{observe}} animals in their natural habitat.","zh":"科学家在动物的自然栖息地观察它们。"},{"day":10,"theme":"高频动词（应对/处理类）","word":"obtain","pos":"v.","cn":"获得","ipa":"əbˈteɪn","en":"You can {{obtain}} more information from the library.","zh":"你可以从图书馆获得更多信息。"},{"day":10,"theme":"高频动词（应对/处理类）","word":"occur","pos":"v.","cn":"发生","ipa":"əˈkər","en":"The accident {{occurred}} near the school gate.","zh":"事故发生在学校大门附近。"},{"day":10,"theme":"高频动词（应对/处理类）","word":"operate","pos":"v.","cn":"操作，运转","ipa":"ˈɔpərˌeɪt","en":"This machine is easy to {{operate}}.","zh":"这台机器很容易操作。"},{"day":10,"theme":"高频动词（应对/处理类）","word":"organize","pos":"v.","cn":"组织","ipa":"ˈɔrgəˌnaɪz","en":"We need to {{organize}} the books on the shelf.","zh":"我们需要整理一下书架上的书。"},{"day":10,"theme":"高频动词（应对/处理类）","word":"overcome","pos":"v.","cn":"克服","ipa":"ˈoʊvərˌkəm","en":"She worked hard to {{overcome}} her fear of speaking.","zh":"她努力克服了害怕演讲的心理。"},{"day":10,"theme":"高频动词（应对/处理类）","word":"participate","pos":"v.","cn":"参加","ipa":"pɑrˈtɪsəˌpeɪt","en":"All students are welcome to {{participate}} in the contest.","zh":"欢迎所有学生参加这次比赛。"},{"day":10,"theme":"高频动词（应对/处理类）","word":"perform","pos":"v.","cn":"表演；执行","ipa":"pərˈfɔrm","en":"The band will {{perform}} at the school festival.","zh":"乐队将在校园艺术节上表演。"},{"day":10,"theme":"高频动词（应对/处理类）","word":"permit","pos":"v./n.","cn":"允许；许可证","ipa":"ˈpərˌmɪt","en":"Smoking is not {{permitted}} in this building.","zh":"这栋楼内不允许吸烟。"},{"day":10,"theme":"高频动词（应对/处理类）","word":"pursue","pos":"v.","cn":"追求","ipa":"pərˈsu","en":"He decided to {{pursue}} a career in music.","zh":"他决定追求音乐事业。"},{"day":10,"theme":"高频动词（应对/处理类）","word":"quote","pos":"v./n.","cn":"引用","ipa":"kwoʊt","en":"She {{quoted}} a line from her favorite book.","zh":"她引用了她最喜欢的书里的一句话。"},{"day":10,"theme":"高频动词（应对/处理类）","word":"react","pos":"v.","cn":"反应","ipa":"riækt","en":"How did your parents {{react}} to your report card?","zh":"你父母对你的成绩单反应如何?"},{"day":10,"theme":"高频动词（应对/处理类）","word":"reduce","pos":"v.","cn":"减少","ipa":"rɪˈdus","en":"We should try to {{reduce}} plastic waste.","zh":"我们应该努力减少塑料垃圾。"},{"day":10,"theme":"高频动词（应对/处理类）","word":"reflect","pos":"v.","cn":"反映，反思","ipa":"rɪˈflɛkt","en":"This essay {{reflects}} her true feelings.","zh":"这篇文章反映了她的真实感受。"},{"day":10,"theme":"高频动词（应对/处理类）","word":"reinforce","pos":"v.","cn":"加强","ipa":"ˌriɪnˈfɔrs","en":"Doing more practice will {{reinforce}} what you learned.","zh":"多做练习能巩固你学到的知识。"},{"day":10,"theme":"高频动词（应对/处理类）","word":"reject","pos":"v.","cn":"拒绝","ipa":"ˈriʤɛkt","en":"The manager {{rejected}} the new proposal.","zh":"经理拒绝了这项新提案。"},{"day":10,"theme":"高频动词（应对/处理类）","word":"relate","pos":"v.","cn":"使相关联","ipa":"rɪˈleɪt","en":"This story {{relates}} to something that happened last year.","zh":"这个故事和去年发生的事情有关。"},{"day":10,"theme":"高频动词（应对/处理类）","word":"release","pos":"v.","cn":"释放，发布","ipa":"riˈlis","en":"The zoo will {{release}} the bird back into the wild.","zh":"动物园将把这只鸟放归野外。"},{"day":10,"theme":"高频动词（应对/处理类）","word":"rely","pos":"v.","cn":"依赖","ipa":"rɪˈlaɪ","en":"You shouldn't always {{rely}} on others for help.","zh":"你不应该总是依赖别人的帮助。"},{"day":10,"theme":"高频动词（应对/处理类）","word":"resolve","pos":"v.","cn":"解决","ipa":"riˈzɑlv","en":"They finally {{resolved}} their argument.","zh":"他们终于解决了争执。"},{"day":10,"theme":"高频动词（应对/处理类）","word":"respond","pos":"v.","cn":"回应","ipa":"rɪˈspɑnd","en":"Please {{respond}} to my email as soon as possible.","zh":"请尽快回复我的邮件。"},{"day":10,"theme":"高频动词（应对/处理类）","word":"restore","pos":"v.","cn":"恢复","ipa":"rɪˈstɔr","en":"Workers are trying to {{restore}} the old temple.","zh":"工人们正在努力修复这座古庙。"},{"day":10,"theme":"高频动词（应对/处理类）","word":"result","pos":"v./n.","cn":"导致；结果","ipa":"rɪˈzəlt","en":"Hard work often {{results}} in success.","zh":"努力工作往往会带来成功。"},{"day":10,"theme":"高频动词（应对/处理类）","word":"retain","pos":"v.","cn":"保留","ipa":"rɪˈteɪn","en":"It's hard to {{retain}} so much information at once.","zh":"一下子记住这么多信息很难。"},{"day":10,"theme":"高频动词（应对/处理类）","word":"reveal","pos":"v.","cn":"揭示","ipa":"rɪˈvil","en":"The magician finally {{revealed}} his secret.","zh":"魔术师最终揭示了他的秘密。"},{"day":10,"theme":"高频动词（应对/处理类）","word":"review","pos":"v./n.","cn":"复习，回顾","ipa":"ˌrivˈju","en":"I need to {{review}} my notes before the test.","zh":"考试前我需要复习一下笔记。"},{"day":10,"theme":"高频动词（应对/处理类）","word":"revise","pos":"v.","cn":"修订","ipa":"rɪˈvaɪz","en":"She {{revised}} her essay before handing it in.","zh":"她在交作业前修改了她的文章。"},{"day":10,"theme":"高频动词（应对/处理类）","word":"select","pos":"v.","cn":"挑选","ipa":"səˈlɛkt","en":"Please {{select}} the correct answer from the four choices.","zh":"请从四个选项中选出正确答案。"},{"day":10,"theme":"高频动词（应对/处理类）","word":"separate","pos":"v./adj.","cn":"分开；分开的","ipa":"ˈsɛpərˌeɪt","en":"The teacher asked us to {{separate}} into small groups.","zh":"老师让我们分成小组。"},{"day":10,"theme":"高频动词（应对/处理类）","word":"settle","pos":"v.","cn":"解决；定居","ipa":"ˈsɛtəl","en":"They finally {{settled}} the disagreement peacefully.","zh":"他们最终和平地解决了分歧。"},{"day":11,"theme":"高频名词（情感/心理/抽象概念）","word":"emotion","pos":"n.","cn":"情感","ipa":"ˈiˌmoʊʃən","en":"It's normal to show your {{emotions}} sometimes.","zh":"有时候表达自己的情感是正常的。"},{"day":11,"theme":"高频名词（情感/心理/抽象概念）","word":"feeling","pos":"n.","cn":"感觉","ipa":"ˈfilɪŋ","en":"I had a strange {{feeling}} that something was wrong.","zh":"我有一种奇怪的感觉,觉得有什么不对劲。"},{"day":11,"theme":"高频名词（情感/心理/抽象概念）","word":"mood","pos":"n.","cn":"心情","ipa":"mud","en":"Music can change your {{mood}} quickly.","zh":"音乐能很快改变你的心情。"},{"day":11,"theme":"高频名词（情感/心理/抽象概念）","word":"mind","pos":"n.","cn":"头脑，思想","ipa":"maɪnd","en":"Keep an open {{mind}} when you hear new ideas.","zh":"听到新想法时要保持开放的心态。"},{"day":11,"theme":"高频名词（情感/心理/抽象概念）","word":"memory","pos":"n.","cn":"记忆","ipa":"ˈmɛməri","en":"I still have a clear {{memory}} of my first day at school.","zh":"我仍然清楚地记得我上学第一天的情景。"},{"day":11,"theme":"高频名词（情感/心理/抽象概念）","word":"thought","pos":"n.","cn":"想法","ipa":"θɔt","en":"She shared her {{thoughts}} about the book.","zh":"她分享了她对这本书的想法。"},{"day":11,"theme":"高频名词（情感/心理/抽象概念）","word":"idea","pos":"n.","cn":"想法，主意","ipa":"aɪˈdiə","en":"That's a great {{idea}} for the class project!","zh":"这是班级项目的一个好主意!"},{"day":11,"theme":"高频名词（情感/心理/抽象概念）","word":"concept","pos":"n.","cn":"概念","ipa":"ˈkɑnsɛpt","en":"The {{concept}} of time can be hard for young children to understand.","zh":"时间这个概念对小孩子来说可能很难理解。"},{"day":11,"theme":"高频名词（情感/心理/抽象概念）","word":"belief","pos":"n.","cn":"信念","ipa":"bɪˈlif","en":"It is her {{belief}} that hard work always pays off.","zh":"她坚信努力总会有回报。"},{"day":11,"theme":"高频名词（情感/心理/抽象概念）","word":"opinion","pos":"n.","cn":"观点","ipa":"əˈpɪnjən","en":"In my {{opinion}}, this book is worth reading.","zh":"在我看来,这本书值得一读。"},{"day":11,"theme":"高频名词（情感/心理/抽象概念）","word":"viewpoint","pos":"n.","cn":"观点，看法","ipa":"vˈjuˌpɔɪnt","en":"Everyone has a different {{viewpoint}} on this issue.","zh":"每个人对这个问题都有不同的看法。"},{"day":11,"theme":"高频名词（情感/心理/抽象概念）","word":"perspective","pos":"n.","cn":"视角","ipa":"pərˈspɛktɪv","en":"Traveling gives you a new {{perspective}} on life.","zh":"旅行会给你带来看待生活的新视角。"},{"day":11,"theme":"高频名词（情感/心理/抽象概念）","word":"judgment","pos":"n.","cn":"判断","ipa":"ˈʤəʤmənt","en":"Don't make a quick {{judgment}} about someone you just met.","zh":"不要对刚认识的人匆忙下判断。"},{"day":11,"theme":"高频名词（情感/心理/抽象概念）","word":"decision","pos":"n.","cn":"决定","ipa":"dɪˈsɪʒən","en":"Choosing a high school is an important {{decision}}.","zh":"选择高中是一个重要的决定。"},{"day":11,"theme":"高频名词（情感/心理/抽象概念）","word":"choice","pos":"n.","cn":"选择","ipa":"ʧɔɪs","en":"You have two {{choices}}: study now or study later.","zh":"你有两个选择:现在学习或者以后学习。"},{"day":11,"theme":"高频名词（情感/心理/抽象概念）","word":"purpose","pos":"n.","cn":"目的","ipa":"ˈpərpəs","en":"The {{purpose}} of this meeting is to plan the trip.","zh":"这次会议的目的是计划这次旅行。"},{"day":11,"theme":"高频名词（情感/心理/抽象概念）","word":"goal","pos":"n.","cn":"目标","ipa":"goʊl","en":"My {{goal}} this year is to improve my English.","zh":"我今年的目标是提高英语水平。"},{"day":11,"theme":"高频名词（情感/心理/抽象概念）","word":"target","pos":"n.","cn":"目标","ipa":"ˈtərgət","en":"We set a {{target}} of reading one book a month.","zh":"我们设定了每月读一本书的目标。"},{"day":11,"theme":"高频名词（情感/心理/抽象概念）","word":"aim","pos":"n./v.","cn":"目标；瞄准","ipa":"eɪm","en":"Her {{aim}} is to become a doctor one day.","zh":"她的目标是有一天成为一名医生。"},{"day":11,"theme":"高频名词（情感/心理/抽象概念）","word":"intention","pos":"n.","cn":"意图","ipa":"ˌɪnˈtɛnʧən","en":"He had no {{intention}} of hurting anyone.","zh":"他没有伤害任何人的意图。"},{"day":11,"theme":"高频名词（情感/心理/抽象概念）","word":"motivation","pos":"n.","cn":"动机","ipa":"ˌmoʊtəˈveɪʃən","en":"Winning the last game gave the team a lot of {{motivation}}.","zh":"赢得上一场比赛给了球队很大的动力。"},{"day":11,"theme":"高频名词（情感/心理/抽象概念）","word":"inspiration","pos":"n.","cn":"灵感","ipa":"ˌɪnspərˈeɪʃən","en":"Nature is a great source of {{inspiration}} for artists.","zh":"大自然是艺术家灵感的重要来源。"},{"day":11,"theme":"高频名词（情感/心理/抽象概念）","word":"imagination","pos":"n.","cn":"想象力","ipa":"ˌɪˌmæʤəˈneɪʃən","en":"Children have a wonderful {{imagination}}.","zh":"孩子们有着奇妙的想象力。"},{"day":11,"theme":"高频名词（情感/心理/抽象概念）","word":"creativity","pos":"n.","cn":"创造力","ipa":"ˌkrieɪˈtɪvəti","en":"The art class helps students develop their {{creativity}}.","zh":"美术课有助于学生发展创造力。"},{"day":11,"theme":"高频名词（情感/心理/抽象概念）","word":"curiosity","pos":"n.","cn":"好奇心","ipa":"ˌkjʊriˈɑsəti","en":"Her {{curiosity}} led her to explore science more deeply.","zh":"她的好奇心让她更深入地探索科学。"},{"day":11,"theme":"高频名词（情感/心理/抽象概念）","word":"confidence","pos":"n.","cn":"自信","ipa":"ˈkɑnfədɛns","en":"Public speaking practice can build your {{confidence}}.","zh":"公众演讲练习能增强你的自信心。"},{"day":11,"theme":"高频名词（情感/心理/抽象概念）","word":"courage","pos":"n.","cn":"勇气","ipa":"kərɪʤ","en":"It takes {{courage}} to admit your mistakes.","zh":"承认自己的错误需要勇气。"},{"day":11,"theme":"高频名词（情感/心理/抽象概念）","word":"patience","pos":"n.","cn":"耐心","ipa":"ˈpeɪʃəns","en":"Learning a language requires a lot of {{patience}}.","zh":"学习一门语言需要很多耐心。"},{"day":11,"theme":"高频名词（情感/心理/抽象概念）","word":"tolerance","pos":"n.","cn":"宽容","ipa":"ˈtɑlərəns","en":"We should show more {{tolerance}} toward different opinions.","zh":"我们应该对不同的意见表现出更多的宽容。"},{"day":11,"theme":"高频名词（情感/心理/抽象概念）","word":"sympathy","pos":"n.","cn":"同情","ipa":"ˈsɪmpəθi","en":"I felt great {{sympathy}} for the flood victims.","zh":"我对洪灾受害者深表同情。"},{"day":11,"theme":"高频名词（情感/心理/抽象概念）","word":"gratitude","pos":"n.","cn":"感激","ipa":"ˈgrætəˌtud","en":"She wrote a letter to show her {{gratitude}} to her teacher.","zh":"她写了一封信向老师表达感激之情。"},{"day":11,"theme":"高频名词（情感/心理/抽象概念）","word":"satisfaction","pos":"n.","cn":"满足","ipa":"ˌsætɪsˈfækʃən","en":"Finishing the project gave me a real sense of {{satisfaction}}.","zh":"完成这个项目给了我一种真正的满足感。"},{"day":11,"theme":"高频名词（情感/心理/抽象概念）","word":"disappointment","pos":"n.","cn":"失望","ipa":"ˌdɪsəˈpɔɪntmənt","en":"Losing the match was a big {{disappointment}} for the team.","zh":"输掉比赛让全队非常失望。"},{"day":11,"theme":"高频名词（情感/心理/抽象概念）","word":"frustration","pos":"n.","cn":"挫败感","ipa":"frəˈstreɪʃən","en":"He felt {{frustration}} when his computer crashed again.","zh":"电脑再次崩溃时他感到很沮丧。"},{"day":11,"theme":"高频名词（情感/心理/抽象概念）","word":"anxiety","pos":"n.","cn":"焦虑","ipa":"æŋˈzaɪəti","en":"Deep breathing can help reduce {{anxiety}}.","zh":"深呼吸有助于缓解焦虑。"},{"day":12,"theme":"高频副词/连词（篇章衔接类）","word":"however","pos":"adv.","cn":"然而","ipa":"ˌhaʊˈɛvər","en":"I wanted to go out; {{however}}, it started to rain.","zh":"我想出去玩,然而天开始下雨了。"},{"day":12,"theme":"高频副词/连词（篇章衔接类）","word":"therefore","pos":"adv.","cn":"因此","ipa":"ˈðɛrˌfɔr","en":"He didn't study; {{therefore}}, he failed the test.","zh":"他没有学习,因此他考试不及格。"},{"day":12,"theme":"高频副词/连词（篇章衔接类）","word":"moreover","pos":"adv.","cn":"此外","ipa":"mɔˈroʊvər","en":"The hotel is cheap; {{moreover}}, it's close to the beach.","zh":"这家旅馆很便宜,而且离海滩很近。"},{"day":12,"theme":"高频副词/连词（篇章衔接类）","word":"furthermore","pos":"adv.","cn":"此外，而且","ipa":"ˈfərðərˌmɔr","en":"The plan saves money; {{furthermore}}, it saves time.","zh":"这个计划省钱,而且还省时间。"},{"day":12,"theme":"高频副词/连词（篇章衔接类）","word":"meanwhile","pos":"adv.","cn":"与此同时","ipa":"ˈminˌwaɪl","en":"Mom was cooking; {{meanwhile}}, I set the table.","zh":"妈妈在做饭,与此同时我在摆桌子。"},{"day":12,"theme":"高频副词/连词（篇章衔接类）","word":"otherwise","pos":"adv.","cn":"否则","ipa":"ˈəðərˌwaɪz","en":"Hurry up, {{otherwise}} we will miss the bus.","zh":"快点,不然我们会错过公交车。"},{"day":12,"theme":"高频副词/连词（篇章衔接类）","word":"nevertheless","pos":"adv.","cn":"然而，尽管如此","ipa":"ˌnɛvərðəˈlɛs","en":"It was raining; {{nevertheless}}, we went for a walk.","zh":"当时在下雨,尽管如此我们还是出去散步了。"},{"day":12,"theme":"高频副词/连词（篇章衔接类）","word":"although","pos":"conj.","cn":"尽管","ipa":"ˌɔlˈðoʊ","en":"{{Although}} it was cold, the children played outside.","zh":"尽管天气很冷,孩子们还是在外面玩。"},{"day":12,"theme":"高频副词/连词（篇章衔接类）","word":"unless","pos":"conj.","cn":"除非","ipa":"ənˈlɛs","en":"You won't pass {{unless}} you study harder.","zh":"除非你更努力学习,否则你不会及格。"},{"day":12,"theme":"高频副词/连词（篇章衔接类）","word":"whereas","pos":"conj.","cn":"然而，鉴于","ipa":"wɛˈræz","en":"My brother likes sports, {{whereas}} I prefer reading.","zh":"我哥哥喜欢运动,而我更喜欢读书。"},{"day":12,"theme":"高频副词/连词（篇章衔接类）","word":"despite","pos":"prep.","cn":"尽管","ipa":"dɪˈspaɪt","en":"{{Despite}} the heavy rain, the game continued.","zh":"尽管下着大雨,比赛还是继续进行。"},{"day":12,"theme":"高频副词/连词（篇章衔接类）","word":"besides","pos":"adv./prep.","cn":"此外","ipa":"ˌbiˈsaɪdz","en":"{{Besides}} English, she also speaks French.","zh":"除了英语,她还会说法语。"},{"day":12,"theme":"高频副词/连词（篇章衔接类）","word":"gradually","pos":"adv.","cn":"逐渐地","ipa":"ˈgræʤuəli","en":"The sky {{gradually}} turned dark before the storm.","zh":"暴风雨来临前天空渐渐变暗。"},{"day":12,"theme":"高频副词/连词（篇章衔接类）","word":"eventually","pos":"adv.","cn":"最终","ipa":"ɪˈvɛnʧəwəli","en":"After many tries, she {{eventually}} solved the puzzle.","zh":"经过多次尝试,她最终解开了这道谜题。"},{"day":12,"theme":"高频副词/连词（篇章衔接类）","word":"occasionally","pos":"adv.","cn":"偶尔","ipa":"ɔˈkeɪʒənəˌli","en":"We {{occasionally}} eat out on weekends.","zh":"我们偶尔会在周末出去吃饭。"},{"day":12,"theme":"高频副词/连词（篇章衔接类）","word":"frequently","pos":"adv.","cn":"频繁地","ipa":"ˈfrikwɛntli","en":"He {{frequently}} forgets his homework.","zh":"他经常忘记带作业。"},{"day":12,"theme":"高频副词/连词（篇章衔接类）","word":"rarely","pos":"adv.","cn":"很少","ipa":"ˈrɛrli","en":"She {{rarely}} gets angry with her students.","zh":"她很少对学生发脾气。"},{"day":12,"theme":"高频副词/连词（篇章衔接类）","word":"hardly","pos":"adv.","cn":"几乎不","ipa":"ˈhɑrdli","en":"I could {{hardly}} hear the teacher from the back row.","zh":"我坐在后排几乎听不见老师说话。"},{"day":12,"theme":"高频副词/连词（篇章衔接类）","word":"nearly","pos":"adv.","cn":"几乎","ipa":"ˈnɪrli","en":"It's {{nearly}} time for the movie to start.","zh":"电影快要开始了。"},{"day":12,"theme":"高频副词/连词（篇章衔接类）","word":"extremely","pos":"adv.","cn":"极其","ipa":"ɪkˈstrimli","en":"The math test was {{extremely}} difficult this time.","zh":"这次数学考试非常难。"},{"day":12,"theme":"高频副词/连词（篇章衔接类）","word":"absolutely","pos":"adv.","cn":"绝对地","ipa":"ˌæbsəˈlutli","en":"I am {{absolutely}} sure that I locked the door.","zh":"我百分之百确定我锁了门。"},{"day":12,"theme":"高频副词/连词（篇章衔接类）","word":"definitely","pos":"adv.","cn":"肯定地","ipa":"ˈdɛfənətli","en":"I will {{definitely}} come to your birthday party.","zh":"我一定会来参加你的生日派对。"},{"day":12,"theme":"高频副词/连词（篇章衔接类）","word":"probably","pos":"adv.","cn":"可能","ipa":"ˈprɑbəˌbli","en":"It will {{probably}} rain later this afternoon.","zh":"今天下午晚些时候可能会下雨。"},{"day":12,"theme":"高频副词/连词（篇章衔接类）","word":"certainly","pos":"adv.","cn":"当然，确实","ipa":"ˈsərtənli","en":"She will {{certainly}} pass the exam if she keeps studying.","zh":"如果她坚持学习,肯定会通过考试。"},{"day":12,"theme":"高频副词/连词（篇章衔接类）","word":"apparently","pos":"adv.","cn":"显然","ipa":"əˈpɛrəntli","en":"{{Apparently}}, the concert has been cancelled.","zh":"显然,这场演唱会已经取消了。"},{"day":12,"theme":"高频副词/连词（篇章衔接类）","word":"immediately","pos":"adv.","cn":"立即","ipa":"ˌɪˈmiˌdiətli","en":"Please come to my office {{immediately}}.","zh":"请立刻到我办公室来。"},{"day":12,"theme":"高频副词/连词（篇章衔接类）","word":"constantly","pos":"adv.","cn":"不断地","ipa":"ˈkɑnstəntli","en":"My phone is {{constantly}} buzzing with messages.","zh":"我的手机不断地收到消息提示。"},{"day":12,"theme":"高频副词/连词（篇章衔接类）","word":"currently","pos":"adv.","cn":"目前","ipa":"ˈkərəntli","en":"She is {{currently}} living in Shenzhen.","zh":"她目前住在深圳。"},{"day":12,"theme":"高频副词/连词（篇章衔接类）","word":"previously","pos":"adv.","cn":"以前","ipa":"ˈpriviəsli","en":"He had {{previously}} studied at another school.","zh":"他以前在另一所学校上过学。"},{"day":12,"theme":"高频副词/连词（篇章衔接类）","word":"recently","pos":"adv.","cn":"最近","ipa":"ˈrisəntli","en":"I {{recently}} finished reading a great novel.","zh":"我最近读完了一本很棒的小说。"},{"day":12,"theme":"高频副词/连词（篇章衔接类）","word":"ultimately","pos":"adv.","cn":"最终","ipa":"ˈəltəmətli","en":"{{Ultimately}}, the decision is up to you.","zh":"最终,决定权在你自己手上。"},{"day":12,"theme":"高频副词/连词（篇章衔接类）","word":"basically","pos":"adv.","cn":"基本上","ipa":"ˈbeɪsɪkli","en":"{{Basically}}, the plan is to leave early and avoid traffic.","zh":"基本上,这个计划就是早点出发以避开交通拥堵。"},{"day":12,"theme":"高频副词/连词（篇章衔接类）","word":"generally","pos":"adv.","cn":"通常","ipa":"ˈʤɛnərəli","en":"{{Generally}} speaking, exercise is good for your health.","zh":"一般来说,锻炼对健康有好处。"},{"day":12,"theme":"高频副词/连词（篇章衔接类）","word":"particularly","pos":"adv.","cn":"尤其","ipa":"ˌpɑrˈtɪkjələrli","en":"I enjoyed the trip, {{particularly}} the museum visit.","zh":"我很喜欢这次旅行,尤其是参观博物馆。"},{"day":12,"theme":"高频副词/连词（篇章衔接类）","word":"specifically","pos":"adv.","cn":"具体地","ipa":"spəˈsɪfɪkli","en":"This book is written {{specifically}} for beginners.","zh":"这本书是专门为初学者写的。"},{"day":13,"theme":"高频名词（科技/信息类）","word":"internet","pos":"n.","cn":"互联网","ipa":"ˈɪntərˌnɛt","en":"We use the {{internet}} to find information for our projects.","zh":"我们用互联网为项目查找信息。"},{"day":13,"theme":"高频名词（科技/信息类）","word":"computer","pos":"n.","cn":"电脑","ipa":"kəmˈpjutər","en":"My {{computer}} is old and runs very slowly.","zh":"我的电脑很旧,运行得很慢。"},{"day":13,"theme":"高频名词（科技/信息类）","word":"software","pos":"n.","cn":"软件","ipa":"ˈsɔfˌwɛr","en":"This {{software}} helps students practice math.","zh":"这款软件帮助学生练习数学。"},{"day":13,"theme":"高频名词（科技/信息类）","word":"hardware","pos":"n.","cn":"硬件","ipa":"ˈhɑrdˌwɛr","en":"The repair shop fixed the {{hardware}} problem in my laptop.","zh":"维修店修好了我笔记本电脑的硬件问题。"},{"day":13,"theme":"高频名词（科技/信息类）","word":"device","pos":"n.","cn":"设备","ipa":"dɪˈvaɪs","en":"Please turn off all electronic {{devices}} during the test.","zh":"考试期间请关闭所有电子设备。"},{"day":13,"theme":"高频名词（科技/信息类）","word":"application","pos":"n.","cn":"应用程序；申请","ipa":"ˌæpləˈkeɪʃən","en":"I downloaded a new {{application}} to learn vocabulary.","zh":"我下载了一款新应用来学习词汇。"},{"day":13,"theme":"高频名词（科技/信息类）","word":"network","pos":"n.","cn":"网络","ipa":"ˈnɛtˌwərk","en":"Our school has a fast wireless {{network}}.","zh":"我们学校有一个快速的无线网络。"},{"day":13,"theme":"高频名词（科技/信息类）","word":"website","pos":"n.","cn":"网站","ipa":"ˈwɛbˌsaɪt","en":"You can find the schedule on the school's {{website}}.","zh":"你可以在学校网站上找到课程表。"},{"day":13,"theme":"高频名词（科技/信息类）","word":"database","pos":"n.","cn":"数据库","ipa":"ˈdætəˌbeɪs","en":"All student records are stored in a {{database}}.","zh":"所有学生记录都存储在数据库中。"},{"day":13,"theme":"高频名词（科技/信息类）","word":"digital","pos":"adj.","cn":"数字的","ipa":"ˈdɪʤɪtəl","en":"We are moving from paper books to {{digital}} textbooks.","zh":"我们正从纸质课本转向数字课本。"},{"day":13,"theme":"高频名词（科技/信息类）","word":"virtual","pos":"adj.","cn":"虚拟的","ipa":"ˈvərʧuəl","en":"The museum offers a {{virtual}} tour online.","zh":"这家博物馆提供在线虚拟参观。"},{"day":13,"theme":"高频名词（科技/信息类）","word":"artificial","pos":"adj.","cn":"人工的","ipa":"ˌɑrtəˈfɪʃəl","en":"{{Artificial}} intelligence is changing many industries.","zh":"人工智能正在改变许多行业。"},{"day":13,"theme":"高频名词（科技/信息类）","word":"robot","pos":"n.","cn":"机器人","ipa":"ˈroʊˌbət","en":"The {{robot}} can clean the whole house by itself.","zh":"这个机器人能自己打扫整个房子。"},{"day":13,"theme":"高频名词（科技/信息类）","word":"automation","pos":"n.","cn":"自动化","ipa":"ɔtəˈmeɪʃən","en":"{{Automation}} has replaced some factory jobs.","zh":"自动化已经取代了一些工厂工作岗位。"},{"day":13,"theme":"高频名词（科技/信息类）","word":"innovation","pos":"n.","cn":"创新","ipa":"ˌɪnəˈveɪʃən","en":"The company is known for its {{innovation}} in technology.","zh":"这家公司以技术创新而闻名。"},{"day":13,"theme":"高频名词（科技/信息类）","word":"equipment","pos":"n.","cn":"设备","ipa":"ɪkˈwɪpmənt","en":"The gym has new sports {{equipment}}.","zh":"健身房有新的运动器材。"},{"day":13,"theme":"高频名词（科技/信息类）","word":"machine","pos":"n.","cn":"机器","ipa":"məˈʃin","en":"This washing {{machine}} is very quiet.","zh":"这台洗衣机非常安静。"},{"day":13,"theme":"高频名词（科技/信息类）","word":"engine","pos":"n.","cn":"引擎","ipa":"ˈɪnʤən","en":"The car's {{engine}} makes a strange noise.","zh":"这辆车的引擎发出奇怪的声音。"},{"day":13,"theme":"高频名词（科技/信息类）","word":"vehicle","pos":"n.","cn":"车辆","ipa":"ˈviɪkəl","en":"An electric {{vehicle}} doesn't need gasoline.","zh":"电动车不需要汽油。"},{"day":13,"theme":"高频名词（科技/信息类）","word":"transport","pos":"n./v.","cn":"交通运输","ipa":"ˈtrænspɔrt","en":"Bicycles are a cheap way to {{transport}} yourself around the city.","zh":"自行车是在城市里出行的一种便宜方式。"},{"day":13,"theme":"高频名词（科技/信息类）","word":"transportation","pos":"n.","cn":"运输","ipa":"ˌtrænspərˈteɪʃən","en":"Public {{transportation}} is convenient in this city.","zh":"这座城市的公共交通很方便。"},{"day":13,"theme":"高频名词（科技/信息类）","word":"aircraft","pos":"n.","cn":"飞机","ipa":"ˈɛrˌkræft","en":"The {{aircraft}} landed safely despite the storm.","zh":"尽管有暴风雨,飞机还是安全降落了。"},{"day":13,"theme":"高频名词（科技/信息类）","word":"spacecraft","pos":"n.","cn":"航天器","ipa":"ˈspeɪˌskræft","en":"The {{spacecraft}} will reach Mars next year.","zh":"这艘航天器明年将到达火星。"},{"day":13,"theme":"高频名词（科技/信息类）","word":"rocket","pos":"n.","cn":"火箭","ipa":"ˈrɑkət","en":"The {{rocket}} launched successfully this morning.","zh":"这枚火箭今天早上成功发射了。"},{"day":13,"theme":"高频名词（科技/信息类）","word":"signal","pos":"n./v.","cn":"信号","ipa":"ˈsɪgnəl","en":"My phone has no {{signal}} in the mountains.","zh":"我的手机在山里没有信号。"},{"day":13,"theme":"高频名词（科技/信息类）","word":"wireless","pos":"adj.","cn":"无线的","ipa":"ˈwaɪrlɪs","en":"We connected to the {{wireless}} network in the cafe.","zh":"我们连接了咖啡馆的无线网络。"},{"day":13,"theme":"高频名词（科技/信息类）","word":"bandwidth","pos":"n.","cn":"带宽","ipa":"ˈbændwɪdθ","en":"Too many users slow down the {{bandwidth}}.","zh":"太多用户会拖慢带宽。"},{"day":13,"theme":"高频名词（科技/信息类）","word":"upload","pos":"v.","cn":"上传","ipa":"ˈəˌploʊd","en":"Please {{upload}} your homework before midnight.","zh":"请在午夜前上传你的作业。"},{"day":13,"theme":"高频名词（科技/信息类）","word":"download","pos":"v.","cn":"下载","ipa":"ˈdaʊnˌloʊd","en":"I {{downloaded}} a new app to learn vocabulary.","zh":"我下载了一个新的学词汇的应用。"},{"day":13,"theme":"高频名词（科技/信息类）","word":"browser","pos":"n.","cn":"浏览器","ipa":"ˈbraʊzər","en":"Close the {{browser}} if the page won't load.","zh":"如果页面无法加载,请关闭浏览器。"},{"day":13,"theme":"高频名词（科技/信息类）","word":"platform","pos":"n.","cn":"平台","ipa":"ˈplætˌfɔrm","en":"This learning {{platform}} has thousands of video lessons.","zh":"这个学习平台有数千个视频课程。"},{"day":13,"theme":"高频名词（科技/信息类）","word":"algorithm","pos":"n.","cn":"算法","ipa":"ˈælgərˌɪðəm","en":"The app uses an {{algorithm}} to suggest new words.","zh":"这个应用使用算法来推荐新单词。"},{"day":13,"theme":"高频名词（科技/信息类）","word":"interface","pos":"n.","cn":"界面","ipa":"ˈɪnərˌfeɪs","en":"The new phone has a simple, clean {{interface}}.","zh":"这款新手机的界面简洁清晰。"},{"day":13,"theme":"高频名词（科技/信息类）","word":"upgrade","pos":"v./n.","cn":"升级","ipa":"ˈəpˈgreɪd","en":"I need to {{upgrade}} my computer's software.","zh":"我需要升级我电脑的软件。"},{"day":13,"theme":"高频名词（科技/信息类）","word":"sensor","pos":"n.","cn":"传感器","ipa":"ˈsɛnsər","en":"The light turns on automatically because of a {{sensor}}.","zh":"由于传感器的作用,灯会自动打开。"},{"day":14,"theme":"高频词汇（健康/生活类）","word":"health","pos":"n.","cn":"健康","ipa":"hɛlθ","en":"Eating vegetables is good for your {{health}}.","zh":"吃蔬菜对健康有好处。"},{"day":14,"theme":"高频词汇（健康/生活类）","word":"disease","pos":"n.","cn":"疾病","ipa":"dɪˈziz","en":"Doctors are working hard to cure this {{disease}}.","zh":"医生们正努力治愈这种疾病。"},{"day":14,"theme":"高频词汇（健康/生活类）","word":"illness","pos":"n.","cn":"疾病","ipa":"ˈɪlnəs","en":"She missed school because of a sudden {{illness}}.","zh":"她因为突然生病而缺课了。"},{"day":14,"theme":"高频词汇（健康/生活类）","word":"symptom","pos":"n.","cn":"症状","ipa":"ˈsɪmptəm","en":"A high fever is a common {{symptom}} of the flu.","zh":"高烧是流感的常见症状。"},{"day":14,"theme":"高频词汇（健康/生活类）","word":"treatment","pos":"n.","cn":"治疗","ipa":"ˈtritmənt","en":"The new {{treatment}} helped him recover quickly.","zh":"这种新疗法帮助他很快康复。"},{"day":14,"theme":"高频词汇（健康/生活类）","word":"medicine","pos":"n.","cn":"药；医学","ipa":"ˈmɛdəsən","en":"Remember to take your {{medicine}} after meals.","zh":"记得饭后吃药。"},{"day":14,"theme":"高频词汇（健康/生活类）","word":"hospital","pos":"n.","cn":"医院","ipa":"ˈhɑˌspɪtəl","en":"My mom works as a nurse at the local {{hospital}}.","zh":"我妈妈在当地医院当护士。"},{"day":14,"theme":"高频词汇（健康/生活类）","word":"doctor","pos":"n.","cn":"医生","ipa":"ˈdɔktər","en":"The {{doctor}} told me to rest for a few days.","zh":"医生让我休息几天。"},{"day":14,"theme":"高频词汇（健康/生活类）","word":"nurse","pos":"n.","cn":"护士","ipa":"nərs","en":"The kind {{nurse}} checked my temperature.","zh":"这位善良的护士给我量了体温。"},{"day":14,"theme":"高频词汇（健康/生活类）","word":"surgery","pos":"n.","cn":"手术","ipa":"ˈsərʤəri","en":"He needed {{surgery}} to fix his broken leg.","zh":"他需要做手术来治疗断腿。"},{"day":14,"theme":"高频词汇（健康/生活类）","word":"diagnosis","pos":"n.","cn":"诊断","ipa":"ˌdaɪəgˈnoʊsəs","en":"The {{diagnosis}} showed that it was just a cold.","zh":"诊断结果显示只是感冒。"},{"day":14,"theme":"高频词汇（健康/生活类）","word":"therapy","pos":"n.","cn":"治疗，疗法","ipa":"ˈθɛrəpi","en":"She goes to physical {{therapy}} twice a week.","zh":"她每周去做两次物理治疗。"},{"day":14,"theme":"高频词汇（健康/生活类）","word":"nutrition","pos":"n.","cn":"营养","ipa":"nuˈtrɪʃən","en":"Good {{nutrition}} helps children grow strong.","zh":"良好的营养有助于孩子健康成长。"},{"day":14,"theme":"高频词汇（健康/生活类）","word":"diet","pos":"n.","cn":"饮食","ipa":"daɪət","en":"A balanced {{diet}} includes fruit and vegetables.","zh":"均衡饮食应包括水果和蔬菜。"},{"day":14,"theme":"高频词汇（健康/生活类）","word":"exercise","pos":"n./v.","cn":"锻炼","ipa":"ˈɛksərˌsaɪz","en":"Regular {{exercise}} keeps your body strong.","zh":"定期锻炼能让你的身体强壮。"},{"day":14,"theme":"高频词汇（健康/生活类）","word":"fitness","pos":"n.","cn":"健康，健身","ipa":"ˈfɪtnəs","en":"He joined a {{fitness}} club to stay in shape.","zh":"他加入了一家健身俱乐部来保持体形。"},{"day":14,"theme":"高频词汇（健康/生活类）","word":"obesity","pos":"n.","cn":"肥胖","ipa":"əˈbisəti","en":"{{Obesity}} can lead to other health problems.","zh":"肥胖会引发其他健康问题。"},{"day":14,"theme":"高频词汇（健康/生活类）","word":"stress","pos":"n.","cn":"压力","ipa":"strɛs","en":"Too much homework can cause {{stress}}.","zh":"过多的作业会造成压力。"},{"day":14,"theme":"高频词汇（健康/生活类）","word":"fatigue","pos":"n.","cn":"疲劳","ipa":"fəˈtig","en":"He felt {{fatigue}} after the long trip.","zh":"长途旅行后他感到疲惫。"},{"day":14,"theme":"高频词汇（健康/生活类）","word":"insomnia","pos":"n.","cn":"失眠","ipa":"ˌɪnˈsɑmniə","en":"Drinking coffee at night can cause {{insomnia}}.","zh":"晚上喝咖啡会导致失眠。"},{"day":14,"theme":"高频词汇（健康/生活类）","word":"allergy","pos":"n.","cn":"过敏","ipa":"ˈælərʤi","en":"She has an {{allergy}} to peanuts.","zh":"她对花生过敏。"},{"day":14,"theme":"高频词汇（健康/生活类）","word":"infection","pos":"n.","cn":"感染","ipa":"ˌɪnˈfɛkʃən","en":"Wash the cut carefully to avoid {{infection}}.","zh":"仔细清洗伤口以避免感染。"},{"day":14,"theme":"高频词汇（健康/生活类）","word":"vaccine","pos":"n.","cn":"疫苗","ipa":"ˌvækˈsin","en":"The {{vaccine}} protects children from the disease.","zh":"这种疫苗保护儿童免受这种疾病侵害。"},{"day":14,"theme":"高频词汇（健康/生活类）","word":"virus","pos":"n.","cn":"病毒","ipa":"ˈvaɪrəs","en":"A {{virus}} caused his high fever.","zh":"一种病毒导致他发高烧。"},{"day":14,"theme":"高频词汇（健康/生活类）","word":"bacteria","pos":"n.","cn":"细菌","ipa":"bækˈtɪriə","en":"Some {{bacteria}} are actually good for our bodies.","zh":"有些细菌其实对我们的身体有益。"},{"day":14,"theme":"高频词汇（健康/生活类）","word":"immune","pos":"adj.","cn":"免疫的","ipa":"ˌɪmˈjun","en":"A healthy diet keeps your {{immune}} system strong.","zh":"健康的饮食能让你的免疫系统保持强健。"},{"day":14,"theme":"高频词汇（健康/生活类）","word":"recovery","pos":"n.","cn":"恢复","ipa":"rɪˈkəvəri","en":"His {{recovery}} from the injury took two months.","zh":"他从伤病中恢复花了两个月。"},{"day":14,"theme":"高频词汇（健康/生活类）","word":"injury","pos":"n.","cn":"伤害","ipa":"ˈɪnʤəri","en":"He suffered a knee {{injury}} during the game.","zh":"他在比赛中膝盖受伤。"},{"day":14,"theme":"高频词汇（健康/生活类）","word":"wound","pos":"n./v.","cn":"伤口；使受伤","ipa":"wund","en":"The nurse cleaned the {{wound}} carefully.","zh":"护士小心地清理了伤口。"},{"day":14,"theme":"高频词汇（健康/生活类）","word":"prevent","pos":"v.","cn":"预防","ipa":"prɪˈvɛnt","en":"Washing hands can {{prevent}} many illnesses.","zh":"洗手可以预防许多疾病。"},{"day":14,"theme":"高频词汇（健康/生活类）","word":"cure","pos":"v./n.","cn":"治愈","ipa":"kjʊr","en":"Scientists are trying to find a {{cure}} for the disease.","zh":"科学家们正努力寻找这种疾病的治愈方法。"},{"day":14,"theme":"高频词汇（健康/生活类）","word":"healthy","pos":"adj.","cn":"健康的","ipa":"ˈhɛlθi","en":"Try to eat {{healthy}} food every day.","zh":"尽量每天吃健康的食物。"},{"day":14,"theme":"高频词汇（健康/生活类）","word":"unhealthy","pos":"adj.","cn":"不健康的","ipa":"ənˈhɛlθi","en":"Eating too much fast food is {{unhealthy}}.","zh":"吃太多快餐是不健康的。"},{"day":14,"theme":"高频词汇（健康/生活类）","word":"chronic","pos":"adj.","cn":"慢性的","ipa":"ˈkrɑnɪk","en":"He has suffered from a {{chronic}} illness for years.","zh":"他多年来一直患有慢性病。"},{"day":14,"theme":"高频词汇（健康/生活类）","word":"physical","pos":"adj.","cn":"身体的","ipa":"ˈfɪzɪkəl","en":"{{Physical}} exercise is important for both body and mind.","zh":"体育锻炼对身心都很重要。"},{"day":15,"theme":"高频形容词（综合补充类）","word":"global","pos":"adj.","cn":"全球的","ipa":"ˈgloʊbəl","en":"Climate change is a {{global}} problem.","zh":"气候变化是一个全球性问题。"},{"day":15,"theme":"高频形容词（综合补充类）","word":"local","pos":"adj.","cn":"当地的","ipa":"ˈloʊkəl","en":"We bought vegetables from a {{local}} farmer.","zh":"我们从当地农民那里买了蔬菜。"},{"day":15,"theme":"高频形容词（综合补充类）","word":"international","pos":"adj.","cn":"国际的","ipa":"ˌɪnərˈnæʃənɑl","en":"She wants to work for an {{international}} company.","zh":"她想为一家跨国公司工作。"},{"day":15,"theme":"高频形容词（综合补充类）","word":"domestic","pos":"adj.","cn":"国内的；家庭的","ipa":"dəˈmɛstɪk","en":"The airport has both {{domestic}} and international flights.","zh":"这座机场既有国内航班也有国际航班。"},{"day":15,"theme":"高频形容词（综合补充类）","word":"cultural","pos":"adj.","cn":"文化的","ipa":"ˈkəlʧərəl","en":"The festival celebrates our {{cultural}} traditions.","zh":"这个节日庆祝我们的文化传统。"},{"day":15,"theme":"高频形容词（综合补充类）","word":"historical","pos":"adj.","cn":"历史的","ipa":"hɪˈstɔrɪkəl","en":"The city is full of {{historical}} buildings.","zh":"这座城市有很多历史建筑。"},{"day":15,"theme":"高频形容词（综合补充类）","word":"traditional","pos":"adj.","cn":"传统的","ipa":"trəˈdɪʃənəl","en":"We wore {{traditional}} clothes for the festival.","zh":"我们在节日期间穿上了传统服装。"},{"day":15,"theme":"高频形容词（综合补充类）","word":"modern","pos":"adj.","cn":"现代的","ipa":"ˈmɑdərn","en":"This museum has a very {{modern}} design.","zh":"这座博物馆的设计非常现代。"},{"day":15,"theme":"高频形容词（综合补充类）","word":"ancient","pos":"adj.","cn":"古代的","ipa":"ˈeɪnʧənt","en":"We visited an {{ancient}} temple during our trip.","zh":"我们在旅行中参观了一座古代寺庙。"},{"day":15,"theme":"高频形容词（综合补充类）","word":"classic","pos":"adj.","cn":"经典的","ipa":"ˈklæsɪk","en":"This is a {{classic}} example of a fairy tale.","zh":"这是童话故事的一个经典例子。"},{"day":15,"theme":"高频形容词（综合补充类）","word":"contemporary","pos":"adj.","cn":"当代的","ipa":"kənˈtɛmpərˌɛri","en":"The gallery shows {{contemporary}} art from young artists.","zh":"这家画廊展出年轻艺术家的当代艺术作品。"},{"day":15,"theme":"高频形容词（综合补充类）","word":"popular","pos":"adj.","cn":"受欢迎的","ipa":"ˈpɑpjələr","en":"K-pop music is very {{popular}} among teenagers.","zh":"韩流音乐在青少年中非常流行。"},{"day":15,"theme":"高频形容词（综合补充类）","word":"famous","pos":"adj.","cn":"著名的","ipa":"ˈfeɪməs","en":"This restaurant is {{famous}} for its noodles.","zh":"这家餐厅以面条闻名。"},{"day":15,"theme":"高频形容词（综合补充类）","word":"wealthy","pos":"adj.","cn":"富有的","ipa":"ˈwɛlθi","en":"The {{wealthy}} businessman donated money to the school.","zh":"这位富有的商人向学校捐了款。"},{"day":15,"theme":"高频形容词（综合补充类）","word":"poor","pos":"adj.","cn":"贫穷的","ipa":"pur","en":"The charity helps {{poor}} families in the countryside.","zh":"这家慈善机构帮助乡村的贫困家庭。"},{"day":15,"theme":"高频形容词（综合补充类）","word":"rich","pos":"adj.","cn":"富有的","ipa":"rɪʧ","en":"The soil here is {{rich}} and good for farming.","zh":"这里的土壤肥沃,适合耕种。"},{"day":15,"theme":"高频形容词（综合补充类）","word":"developed","pos":"adj.","cn":"发达的","ipa":"dɪˈvɛləpt","en":"Japan is considered a {{developed}} country.","zh":"日本被认为是一个发达国家。"},{"day":15,"theme":"高频形容词（综合补充类）","word":"developing","pos":"adj.","cn":"发展中的","ipa":"dɪˈvɛləpɪŋ","en":"Many {{developing}} countries are building new schools.","zh":"许多发展中国家正在建设新学校。"},{"day":15,"theme":"高频形容词（综合补充类）","word":"advanced","pos":"adj.","cn":"先进的","ipa":"ədˈvænst","en":"This is an {{advanced}} class for students who already know the basics.","zh":"这是为已经掌握基础知识的学生开设的高级班。"},{"day":15,"theme":"高频形容词（综合补充类）","word":"basic","pos":"adj.","cn":"基本的","ipa":"ˈbeɪsɪk","en":"Everyone should learn some {{basic}} first-aid skills.","zh":"每个人都应该学习一些基本的急救技能。"},{"day":15,"theme":"高频形容词（综合补充类）","word":"fundamental","pos":"adj.","cn":"基础的，根本的","ipa":"ˌfəndəˈmɛnəl","en":"Honesty is a {{fundamental}} value in our family.","zh":"诚实是我们家庭的一项基本价值观。"},{"day":15,"theme":"高频形容词（综合补充类）","word":"primary","pos":"adj.","cn":"主要的；初级的","ipa":"ˈpraɪˌmɛri","en":"Reading is the {{primary}} goal of this class.","zh":"阅读是这门课的主要目标。"},{"day":15,"theme":"高频形容词（综合补充类）","word":"secondary","pos":"adj.","cn":"次要的；中等的","ipa":"ˈsɛkənˌdɛri","en":"He will go to a {{secondary}} school next year.","zh":"他明年将上中学。"},{"day":15,"theme":"高频形容词（综合补充类）","word":"initial","pos":"adj.","cn":"最初的","ipa":"ˌɪˈnɪʃəl","en":"My {{initial}} plan was to travel by train.","zh":"我最初的计划是坐火车旅行。"},{"day":15,"theme":"高频形容词（综合补充类）","word":"final","pos":"adj.","cn":"最后的","ipa":"ˈfaɪnəl","en":"This is the {{final}} question on the test.","zh":"这是这次测试的最后一道题。"},{"day":15,"theme":"高频形容词（综合补充类）","word":"ultimate","pos":"adj.","cn":"最终的","ipa":"ˈəltəmət","en":"Winning the championship was her {{ultimate}} goal.","zh":"赢得冠军是她的终极目标。"},{"day":15,"theme":"高频形容词（综合补充类）","word":"overall","pos":"adj.","cn":"总体的","ipa":"ˈoʊvərˌɔl","en":"The {{overall}} quality of the show was excellent.","zh":"这场演出的整体质量非常出色。"},{"day":15,"theme":"高频形容词（综合补充类）","word":"entire","pos":"adj.","cn":"整个的","ipa":"ɪnˈtaɪər","en":"She spent the {{entire}} weekend studying for the exam.","zh":"她花了整个周末的时间备考。"},{"day":15,"theme":"高频形容词（综合补充类）","word":"whole","pos":"adj.","cn":"整个的","ipa":"hoʊl","en":"He ate the {{whole}} cake by himself.","zh":"他一个人吃掉了整个蛋糕。"},{"day":15,"theme":"高频形容词（综合补充类）","word":"partial","pos":"adj.","cn":"部分的","ipa":"ˈpɑrʃəl","en":"We only got a {{partial}} refund for the trip.","zh":"我们只拿到了这次旅行的部分退款。"},{"day":15,"theme":"高频形容词（综合补充类）","word":"minor","pos":"adj.","cn":"较小的","ipa":"ˈmaɪnər","en":"It was just a {{minor}} mistake, nothing serious.","zh":"这只是个小错误,没什么大不了的。"},{"day":15,"theme":"高频形容词（综合补充类）","word":"major","pos":"adj.","cn":"主要的","ipa":"ˈmeɪʤər","en":"Pollution is a {{major}} problem in many cities.","zh":"污染在许多城市是一个主要问题。"},{"day":15,"theme":"高频形容词（综合补充类）","word":"average","pos":"adj./n.","cn":"平均的；平均数","ipa":"ˈævərɪʤ","en":"The {{average}} temperature in summer is around 30 degrees.","zh":"夏天的平均气温大约是30度。"},{"day":15,"theme":"高频形容词（综合补充类）","word":"extra","pos":"adj.","cn":"额外的","ipa":"ˈɛkstrə","en":"Can I have some {{extra}} time to finish the test?","zh":"我可以多要一点时间做完测试吗?"},{"day":15,"theme":"高频形容词（综合补充类）","word":"additional","pos":"adj.","cn":"附加的","ipa":"əˈdɪʃənəl","en":"The teacher gave us {{additional}} practice sheets.","zh":"老师给了我们额外的练习题。"}];
+</script>
+<script>
+(function () {
+  "use strict";
+
+  /* ================= storage ================= */
+  const STORAGE_KEY = "vocabGameStateV1";
+  let persistOK = true;
+  function loadState() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch (e) { persistOK = false; }
+    return null;
+  }
+  function saveState() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+    catch (e) { persistOK = false; }
+  }
+
+  const todayStr = () => {
+    const d = new Date();
+    return d.getFullYear() + "-" + (d.getMonth()+1) + "-" + d.getDate();
+  };
+
+  let state = loadState() || {
+    xp: 0,
+    streak: 0,
+    lastPlayedDate: null,
+    completed: {} // { levelId: { stars, bestScore } }
+  };
+
+  /* ================= word pools ================= */
+  const WORDS_BY_DAY = {};
+  WORDS.forEach(w => {
+    (WORDS_BY_DAY[w.day] = WORDS_BY_DAY[w.day] || []).push(w);
+  });
+
+  const LEVELS = [];
+  for (let d = 1; d <= 15; d++) {
+    LEVELS.push({ id: d, type: "learn", label: "Day " + d, sub: WORDS_BY_DAY[d][0].theme.replace(/[（）]/g, m => m==="（"?" (":")") });
+  }
+  LEVELS.push({ id: 16, type: "review", label: "Day 16", sub: "大滚动复习①" });
+  LEVELS.push({ id: 17, type: "review", label: "Day 17", sub: "大滚动复习②" });
+  LEVELS.push({ id: 18, type: "review", label: "Day 18", sub: "总测验" });
+
+  function isUnlocked(levelId) {
+    if (levelId === 1) return true;
+    return !!state.completed[levelId - 1];
+  }
+
+  /* ================= helpers ================= */
+  function shuffle(arr) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+  function sample(arr, n) { return shuffle(arr).slice(0, Math.min(n, arr.length)); }
+  function extractMarker(en) {
+    const m = en.match(/\{\{(.*?)\}\}/);
+    return m ? m[1] : "";
+  }
+  function renderSentenceHTML(en, blankText) {
+    return en.replace(/\{\{(.*?)\}\}/, '<span class="blank">' + (blankText ? blankText : "____") + '</span>');
+  }
+  function speak(text) {
+    try {
+      if (!("speechSynthesis" in window)) return;
+      speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = "en-US";
+      u.rate = 0.9;
+      speechSynthesis.speak(u);
+    } catch (e) {}
+  }
+
+  /* ================= app state machine ================= */
+  const app = document.getElementById("app");
+  let screen = "map"; // map | lesson | summary
+  let lessonState = null;
+
+  function go(newScreen) { screen = newScreen; render(); }
+
+  /* ---------------- MAP SCREEN ---------------- */
+  function buildLessonPool(level) {
+    if (level.type === "learn") {
+      const dayWords = shuffle(WORDS_BY_DAY[level.id]);
+      let reviewWords = [];
+      if (level.id > 1) {
+        const priorDays = [];
+        for (let d = 1; d < level.id; d++) priorDays.push(...WORDS_BY_DAY[d]);
+        reviewWords = sample(priorDays, Math.min(5, priorDays.length));
+      }
+      return shuffle(dayWords.concat(reviewWords));
+    }
+    if (level.id === 16 || level.id === 17) {
+      let pool = [];
+      for (let d = 1; d <= 15; d++) pool = pool.concat(WORDS_BY_DAY[d]);
+      return sample(pool, 40);
+    }
+    // level 18 总测验
+    return sample(WORDS, 60);
+  }
+
+  function statHeader() {
+    const div = document.createElement("div");
+    div.className = "statbar";
+    div.innerHTML =
+      '<div class="brand">🐣 单词闯关</div>' +
+      '<div style="display:flex;gap:14px;">' +
+      '<div class="stat"><span class="emoji">🔥</span>' + state.streak + '</div>' +
+      '<div class="stat"><span class="emoji">⭐</span>' + state.xp + '</div>' +
+      '</div>';
+    return div;
+  }
+
+  function renderMap() {
+    app.innerHTML = "";
+    app.appendChild(statHeader());
+
+    const wrap = document.createElement("div");
+    wrap.className = "map-wrap";
+
+    const title = document.createElement("div");
+    title.className = "map-title";
+    title.innerHTML = "<h1>18天单词闯关地图</h1><p>点亮的关卡可以点进去挑战，完成上一关解锁下一关</p>";
+    wrap.appendChild(title);
+
+    const path = document.createElement("div");
+    path.className = "path";
+
+    LEVELS.forEach((lv, idx) => {
+      if (idx > 0) {
+        const c = document.createElement("div");
+        c.className = "connector";
+        path.appendChild(c);
+      }
+      const row = document.createElement("div");
+      row.className = "node-row";
+      row.style.gap = "14px";
+
+      const unlocked = isUnlocked(lv.id);
+      const completedInfo = state.completed[lv.id];
+
+      const node = document.createElement("button");
+      node.className = "node" + (unlocked ? (lv.type === "review" ? " review" : "") : " locked");
+      const dayIcon = lv.type === "review" ? "🏆" : "📘";
+      node.innerHTML =
+        '<div class="daylabel">' + (unlocked ? dayIcon : "🔒") + '</div>' +
+        '<div class="daynum">' + lv.id + '</div>' +
+        (completedInfo ? '<div class="stars">' + "★".repeat(completedInfo.stars) + "☆".repeat(3 - completedInfo.stars) + '</div>' : '');
+      if (unlocked) {
+        node.addEventListener("click", () => startLesson(lv));
+      }
+
+      const sideLabel = document.createElement("div");
+      sideLabel.className = "node-side-label";
+      sideLabel.textContent = lv.label + " · " + lv.sub;
+
+      if (idx % 2 === 0) {
+        row.appendChild(node);
+        row.appendChild(sideLabel);
+      } else {
+        row.appendChild(sideLabel);
+        row.appendChild(node);
+      }
+      path.appendChild(row);
+    });
+
+    wrap.appendChild(path);
+
+    if (!persistOK) {
+      const warn = document.createElement("p");
+      warn.className = "storage-warning";
+      warn.textContent = "当前浏览器无法保存进度，关闭页面后本次记录会丢失";
+      wrap.appendChild(warn);
+    }
+
+    app.appendChild(wrap);
+  }
+
+  /* ---------------- LESSON SCREEN ---------------- */
+  function makeQuestion(word, pool) {
+    const types = ["mc_meaning", "mc_word", "listen", "spell", "sentence"];
+    // sentence type only valid if word.en has marker (always true here)
+    const type = types[Math.floor(Math.random() * types.length)];
+    const distractPool = pool.filter(w => w.word !== word.word);
+
+    if (type === "mc_meaning") {
+      const opts = shuffle([word.cn].concat(sample(distractPool, 3).map(w => w.cn)));
+      return { type, word, options: opts, correct: word.cn };
+    }
+    if (type === "mc_word" || type === "listen") {
+      const opts = shuffle([word.word].concat(sample(distractPool, 3).map(w => w.word)));
+      return { type, word, options: opts, correct: word.word };
+    }
+    if (type === "sentence") {
+      const marker = extractMarker(word.en);
+      const distractWords = sample(distractPool, 3).map(w => extractMarker(w.en) || w.word);
+      const opts = shuffle([marker].concat(distractWords));
+      return { type, word, options: opts, correct: marker };
+    }
+    // spell
+    return { type: "spell", word, correct: word.word };
+  }
+
+  function startLesson(level) {
+    const pool = buildLessonPool(level);
+    const questions = pool.map(w => makeQuestion(w, pool));
+    lessonState = {
+      level, questions, idx: 0, hearts: 5, correctCount: 0,
+      misses: [], answered: false, selected: null
+    };
+    go("lesson");
+  }
+
+  function renderLesson() {
+    app.innerHTML = "";
+    const ls = lessonState;
+    const q = ls.questions[ls.idx];
+
+    const wrap = document.createElement("div");
+    wrap.className = "lesson-wrap";
+
+    // top bar
+    const topbar = document.createElement("div");
+    topbar.className = "lesson-topbar";
+    const closeBtn = document.createElement("button");
+    closeBtn.className = "close-btn";
+    closeBtn.textContent = "✕";
+    closeBtn.addEventListener("click", () => { if (confirm("确定要退出本关吗？本次进度不会保存")) go("map"); });
+    const track = document.createElement("div");
+    track.className = "progressbar-track";
+    const fill = document.createElement("div");
+    fill.className = "progressbar-fill";
+    fill.style.width = Math.round((ls.idx / ls.questions.length) * 100) + "%";
+    track.appendChild(fill);
+    const hearts = document.createElement("div");
+    hearts.className = "hearts";
+    hearts.textContent = "❤️".repeat(ls.hearts) + "🤍".repeat(5 - ls.hearts);
+    topbar.appendChild(closeBtn);
+    topbar.appendChild(track);
+    topbar.appendChild(hearts);
+    wrap.appendChild(topbar);
+
+    const qCard = document.createElement("div");
+    qCard.className = "question-card";
+
+    const instr = document.createElement("div");
+    instr.className = "q-instruction";
+    const instrText = {
+      mc_meaning: "选出正确的中文意思",
+      mc_word: "选出对应的英文单词",
+      listen: "点击喇叭听发音，选出你听到的单词",
+      spell: "根据提示拼写出这个单词",
+      sentence: "选出正确的单词，补全句子",
+    };
+    instr.textContent = instrText[q.type];
+    qCard.appendChild(instr);
+
+    const prompt = document.createElement("div");
+    prompt.className = "q-prompt";
+
+    if (q.type === "mc_meaning") {
+      prompt.innerHTML =
+        '<div class="word">' + q.word.word + '</div>' +
+        '<div class="ipa">/' + q.word.ipa + '/</div>' +
+        '<div class="pos">' + q.word.pos + '</div>';
+      const sb = document.createElement("button");
+      sb.className = "speak-btn"; sb.textContent = "🔊";
+      sb.addEventListener("click", () => speak(q.word.word));
+      prompt.appendChild(sb);
+    } else if (q.type === "mc_word" || q.type === "spell") {
+      prompt.innerHTML = '<div class="cn">' + q.word.cn + '</div><div class="pos">' + q.word.pos + '</div>';
+      if (q.type === "spell") {
+        const ipaLine = document.createElement("div");
+        ipaLine.className = "ipa";
+        ipaLine.textContent = "/" + q.word.ipa + "/";
+        prompt.appendChild(ipaLine);
+      }
+    } else if (q.type === "listen") {
+      prompt.innerHTML = '<div class="pos">🎧 请听发音</div>';
+      const sb = document.createElement("button");
+      sb.className = "speak-btn"; sb.textContent = "🔊";
+      sb.addEventListener("click", () => speak(q.word.word));
+      prompt.appendChild(sb);
+    } else if (q.type === "sentence") {
+      prompt.innerHTML =
+        '<div class="sentence">' + renderSentenceHTML(q.word.en) + '</div>' +
+        '<div class="sentence-zh">' + q.word.zh + '</div>';
+    }
+    qCard.appendChild(prompt);
+
+    const bottomArea = document.createElement("div");
+
+    if (q.type === "spell") {
+      const row = document.createElement("div");
+      row.className = "spell-row";
+      const input = document.createElement("input");
+      input.className = "spell-input";
+      input.setAttribute("autocapitalize", "off");
+      input.setAttribute("autocorrect", "off");
+      input.setAttribute("spellcheck", "false");
+      input.placeholder = "在此输入英文单词";
+      const hintBtn = document.createElement("button");
+      hintBtn.className = "hint-btn";
+      hintBtn.textContent = "提示";
+      hintBtn.addEventListener("click", () => {
+        input.value = q.word.word[0];
+        input.focus();
+      });
+      row.appendChild(input);
+      row.appendChild(hintBtn);
+      bottomArea.appendChild(row);
+
+      const checkBtn = document.createElement("button");
+      checkBtn.className = "check-btn";
+      checkBtn.textContent = "检查";
+      input.addEventListener("input", () => {
+        checkBtn.classList.toggle("active", input.value.trim().length > 0);
+      });
+      checkBtn.addEventListener("click", () => {
+        if (!input.value.trim() || ls.answered) return;
+        const correct = input.value.trim().toLowerCase() === q.correct.toLowerCase();
+        input.classList.add(correct ? "correct" : "wrong");
+        input.disabled = true;
+        submitAnswer(q, correct);
+      });
+      bottomArea.appendChild(checkBtn);
+      qCard.appendChild(bottomArea);
+      wrap.appendChild(qCard);
+      app.appendChild(wrap);
+      setTimeout(() => input.focus(), 50);
+    } else {
+      const optWrap = document.createElement("div");
+      optWrap.className = "options";
+      q.options.forEach(opt => {
+        const btn = document.createElement("button");
+        btn.className = "option-btn";
+        btn.textContent = opt;
+        btn.addEventListener("click", () => {
+          if (ls.answered) return;
+          const correct = opt === q.correct;
+          ls.answered = true;
+          ls.selected = opt;
+          [...optWrap.children].forEach(c => {
+            c.classList.add("dim");
+            if (c.textContent === q.correct) c.classList.remove("dim");
+          });
+          btn.classList.remove("dim");
+          btn.classList.add(correct ? "correct" : "wrong");
+          submitAnswer(q, correct);
+        });
+        optWrap.appendChild(btn);
+      });
+      qCard.appendChild(optWrap);
+      wrap.appendChild(qCard);
+      app.appendChild(wrap);
+    }
+  }
+
+  function submitAnswer(q, correct) {
+    const ls = lessonState;
+    ls.answered = true;
+    if (correct) {
+      ls.correctCount++;
+    } else {
+      ls.hearts--;
+      ls.misses.push(q.word);
+    }
+    showFeedback(q, correct);
+  }
+
+  function showFeedback(q, correct) {
+    const bar = document.createElement("div");
+    bar.className = "feedback-bar " + (correct ? "correct" : "wrong");
+    const text = document.createElement("div");
+    text.className = "feedback-text";
+    text.textContent = correct ? ["太棒了！", "答对了！", "厉害！", "完美！"][Math.floor(Math.random()*4)] : "不对哦";
+    bar.appendChild(text);
+    if (!correct) {
+      const ans = document.createElement("div");
+      ans.className = "feedback-answer";
+      const showWord = q.type === "mc_meaning" ? (q.word.word + "  " + q.word.cn) : (q.correct + "  " + q.word.cn);
+      ans.textContent = "正确答案：" + showWord;
+      bar.appendChild(ans);
+    }
+    const btn = document.createElement("button");
+    btn.className = "btn-primary";
+    btn.textContent = lessonState.hearts <= 0 ? "查看结果" : "继续";
+    btn.addEventListener("click", nextQuestion);
+    bar.appendChild(btn);
+    document.querySelector(".lesson-wrap").appendChild(bar);
+    setTimeout(() => btn.focus(), 10);
+  }
+
+  function nextQuestion() {
+    const ls = lessonState;
+    if (ls.hearts <= 0) { finishLesson(false); return; }
+    ls.idx++;
+    ls.answered = false;
+    ls.selected = null;
+    if (ls.idx >= ls.questions.length) { finishLesson(true); return; }
+    renderLesson();
+  }
+
+  function finishLesson(completed) {
+    const ls = lessonState;
+    const total = ls.questions.length;
+    const acc = total ? ls.correctCount / total : 0;
+    let stars = 0;
+    if (completed) {
+      if (ls.hearts >= 5) stars = 3;
+      else if (ls.hearts >= 3) stars = 2;
+      else stars = 1;
+    }
+    const xpGain = ls.correctCount * 10 + (completed ? 20 : 0);
+    state.xp += xpGain;
+
+    if (completed) {
+      const prev = state.completed[ls.level.id];
+      state.completed[ls.level.id] = { stars: Math.max(stars, prev ? prev.stars : 0) };
+      const today = todayStr();
+      if (state.lastPlayedDate !== today) {
+        // simple consecutive-day check based on date diff
+        state.streak = state.streak ? state.streak + 1 : 1;
+        state.lastPlayedDate = today;
+      }
+    }
+    saveState();
+
+    lessonState.summary = { completed, total, correctCount: ls.correctCount, stars, xpGain, misses: ls.misses };
+    go("summary");
+  }
+
+  /* ---------------- SUMMARY SCREEN ---------------- */
+  function renderSummary() {
+    app.innerHTML = "";
+    const s = lessonState.summary;
+    const wrap = document.createElement("div");
+    wrap.className = "summary-wrap";
+
+    wrap.innerHTML =
+      '<div class="summary-emoji">' + (s.completed ? "🎉" : "💔") + '</div>' +
+      '<div class="summary-title">' + (s.completed ? "关卡完成！" : "本关失败，再接再厉") + '</div>' +
+      '<div class="summary-sub">' + lessonState.level.label + " · " + lessonState.level.sub + '</div>' +
+      (s.completed ? '<div class="summary-stars">' + "★".repeat(s.stars) + "☆".repeat(3-s.stars) + '</div>' : '');
+
+    const statsDiv = document.createElement("div");
+    statsDiv.className = "summary-stats";
+    statsDiv.innerHTML =
+      '<div class="summary-stat-card"><div class="num">' + s.correctCount + '/' + s.total + '</div><div class="label">答对题数</div></div>' +
+      '<div class="summary-stat-card"><div class="num">+' + s.xpGain + '</div><div class="label">获得经验</div></div>' +
+      '<div class="summary-stat-card"><div class="num">' + Math.round(s.correctCount/s.total*100) + '%</div><div class="label">正确率</div></div>';
+    wrap.appendChild(statsDiv);
+
+    if (s.misses.length) {
+      const missBox = document.createElement("div");
+      missBox.className = "miss-list";
+      const uniqueMisses = [];
+      const seen = new Set();
+      s.misses.forEach(w => { if (!seen.has(w.word)) { seen.add(w.word); uniqueMisses.push(w); } });
+      missBox.innerHTML = "<h3>本关错词（" + uniqueMisses.length + "个）</h3>" +
+        uniqueMisses.map(w => '<div class="miss-item"><span class="w">' + w.word + '</span><span class="c">' + w.cn + '</span></div>').join("");
+      wrap.appendChild(missBox);
+    }
+
+    const actions = document.createElement("div");
+    actions.className = "summary-actions";
+
+    if (s.misses.length) {
+      const retryMissBtn = document.createElement("button");
+      retryMissBtn.className = "btn-primary";
+      retryMissBtn.textContent = "只复习错题";
+      retryMissBtn.addEventListener("click", () => {
+        const uniqueMisses = [];
+        const seen = new Set();
+        s.misses.forEach(w => { if (!seen.has(w.word)) { seen.add(w.word); uniqueMisses.push(w); } });
+        const pool = uniqueMisses;
+        const questions = pool.map(w => makeQuestion(w, pool.length >= 4 ? pool : WORDS_BY_DAY[lessonState.level.type==='learn'?lessonState.level.id:1]));
+        lessonState = { level: lessonState.level, questions, idx: 0, hearts: 5, correctCount: 0, misses: [], answered: false, selected: null };
+        go("lesson");
+      });
+      actions.appendChild(retryMissBtn);
+    }
+
+    const retryBtn = document.createElement("button");
+    retryBtn.className = s.misses.length ? "btn-secondary" : "btn-primary";
+    retryBtn.textContent = "重新挑战本关";
+    retryBtn.addEventListener("click", () => startLesson(lessonState.level));
+    actions.appendChild(retryBtn);
+
+    const mapBtn = document.createElement("button");
+    mapBtn.className = "btn-secondary";
+    mapBtn.textContent = "返回关卡地图";
+    mapBtn.addEventListener("click", () => go("map"));
+    actions.appendChild(mapBtn);
+
+    wrap.appendChild(actions);
+    app.appendChild(wrap);
+  }
+
+  /* ================= render dispatcher ================= */
+  function render() {
+    if (screen === "map") renderMap();
+    else if (screen === "lesson") renderLesson();
+    else if (screen === "summary") renderSummary();
+  }
+
+  render();
+})();
+</script>
+</body>
+</html>
