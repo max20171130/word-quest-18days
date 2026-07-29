@@ -280,6 +280,34 @@ const WORDS = [{"day":1,"theme":"高频动词（日常动作/沟通类）","word
   LEVELS.push({ id: 17, type: "review", label: "Day 17", sub: "大滚动复习②" });
   LEVELS.push({ id: 18, type: "review", label: "Day 18", sub: "总测验" });
 
+  // Ebbinghaus-curve review schedule — same day-to-day mapping used in the
+  // printed word-plan doc's "复习安排" column (1-day, then widening gaps,
+  // with Day6/Day12 as bigger weekly rolling reviews). Each day's quiz pulls
+  // its review words specifically from these days, not a random prior day.
+  const REVIEW_SCHEDULE = {
+    2: { days: [1], count: 8 },
+    3: { days: [1, 2], count: 8 },
+    4: { days: [1, 2, 3], count: 8 },
+    5: { days: [2, 4], count: 8 },
+    6: { days: [1, 2, 3, 4, 5], count: 18 },       // 周复习
+    7: { days: [3, 5, 6], count: 8 },
+    8: { days: [4, 6, 7], count: 8 },
+    9: { days: [5, 7, 8], count: 8 },
+    10: { days: [6, 8, 9], count: 8 },
+    11: { days: [7, 9, 10], count: 8 },
+    12: { days: [6, 7, 8, 9, 10, 11], count: 18 }, // 周复习
+    13: { days: [8, 10, 12], count: 8 },
+    14: { days: [9, 11, 13], count: 8 },
+    15: { days: [10, 12, 14], count: 8 },
+  };
+
+  function reviewLabelFor(levelId) {
+    const s = REVIEW_SCHEDULE[levelId];
+    if (!s) return null;
+    const dayList = "Day" + s.days.join("、Day");
+    return (s.days.length >= 5 ? "周复习 · " : "测试关卡混入复习 · ") + dayList;
+  }
+
   function isUnlocked(levelId) {
     if (levelId === 1) return true;
     return !!state.completed[levelId - 1];
@@ -326,10 +354,11 @@ const WORDS = [{"day":1,"theme":"高频动词（日常动作/沟通类）","word
     if (level.type === "learn") {
       const dayWords = shuffle(WORDS_BY_DAY[level.id]);
       let reviewWords = [];
-      if (level.id > 1) {
-        const priorDays = [];
-        for (let d = 1; d < level.id; d++) priorDays.push(...WORDS_BY_DAY[d]);
-        reviewWords = sample(priorDays, Math.min(5, priorDays.length));
+      const schedule = REVIEW_SCHEDULE[level.id];
+      if (schedule) {
+        const reviewPool = [];
+        schedule.days.forEach(d => reviewPool.push(...WORDS_BY_DAY[d]));
+        reviewWords = sample(reviewPool, Math.min(schedule.count, reviewPool.length));
       }
       return shuffle(dayWords.concat(reviewWords));
     }
@@ -397,6 +426,13 @@ const WORDS = [{"day":1,"theme":"高频动词（日常动作/沟通类）","word
       const sideLabel = document.createElement("div");
       sideLabel.className = "node-side-label";
       sideLabel.textContent = lv.label + " · " + lv.sub;
+      const reviewLabel = reviewLabelFor(lv.id);
+      if (reviewLabel) {
+        const rl = document.createElement("div");
+        rl.style.cssText = "font-size:10.5px;color:var(--text-dim);margin-top:2px;";
+        rl.textContent = reviewLabel;
+        sideLabel.appendChild(rl);
+      }
       if (unlocked && needsStudy) {
         const tag = document.createElement("div");
         tag.style.cssText = "font-size:11px;color:var(--primary-dark);font-weight:700;margin-top:2px;";
