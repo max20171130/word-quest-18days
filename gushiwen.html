@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>古诗文背诵闯关 - 七上必背10篇</title>
+<style>
+  :root {
+    --bg: #F4F1FB;
+    --card: #FFFFFF;
+    --primary: #6B2E9E;
+    --primary-dark: #4E1F76;
+    --success: #23A566;
+    --success-bg: #E4F8EE;
+    --danger: #E5484D;
+    --danger-bg: #FDECEC;
+    --gold: #F5A623;
+    --text: #1F2937;
+    --text-dim: #6B7280;
+    --locked: #C7CDD6;
+    --radius: 18px;
+    --shadow: 0 6px 18px rgba(31,41,55,0.08);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: var(--bg);
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+    color: var(--text);
+    overscroll-behavior: none;
+  }
+  #app { max-width: 480px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; padding-bottom: env(safe-area-inset-bottom); }
+
+  .statbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px calc(10px + env(safe-area-inset-top)) 16px;
+    padding-top: max(14px, env(safe-area-inset-top));
+    background: var(--card); box-shadow: var(--shadow);
+    position: sticky; top: 0; z-index: 20;
+  }
+  .stat { display: flex; align-items: center; gap: 4px; font-weight: 700; font-size: 15px; }
+  .stat .emoji { font-size: 18px; }
+  .brand { font-size: 17px; font-weight: 800; color: var(--primary-dark); }
+
+  .map-wrap { flex: 1; padding: 20px 16px 40px; overflow-y: auto; }
+  .map-title { text-align: center; margin: 4px 0 22px; }
+  .map-title h1 { font-size: 20px; margin: 0 0 4px; }
+  .map-title p { font-size: 13px; color: var(--text-dim); margin: 0; }
+
+  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+  .piece-card {
+    background: var(--card); border-radius: 16px; box-shadow: var(--shadow);
+    padding: 16px 12px; text-align: center; border: none; cursor: pointer;
+  }
+  .piece-card .icon { font-size: 30px; }
+  .piece-card .pnum { font-size: 12px; color: var(--text-dim); font-weight: 700; margin-top: 2px; }
+  .piece-card .ptitle { font-size: 15px; font-weight: 800; margin-top: 4px; line-height: 1.3; }
+  .piece-card .pauthor { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+  .piece-card .stars { font-size: 13px; letter-spacing: 1px; margin-top: 6px; color: var(--gold); }
+  .piece-card .tag { font-size: 10.5px; color: var(--primary-dark); font-weight: 700; margin-top: 6px; }
+  .piece-card .restudy { margin-top: 8px; font-size: 10.5px; font-weight: 700; color: var(--primary-dark); background: none; border: 1px solid var(--primary); border-radius: 999px; padding: 2px 8px; }
+
+  .storage-warning { font-size: 11px; color: var(--text-dim); text-align: center; padding: 6px 16px 0; }
+
+  /* ---------- Study screen ---------- */
+  .study-wrap { flex: 1; padding: 14px 16px 30px; overflow-y: auto; }
+  .study-topbar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .close-btn { font-size: 22px; color: var(--text-dim); background: none; border: none; padding: 4px 8px; cursor: pointer; }
+  .study-heading { font-size: 20px; font-weight: 800; color: var(--primary-dark); }
+  .study-sub { font-size: 13px; color: var(--text-dim); margin-top: 2px; }
+  .warn-box {
+    background: #FFF2E8; color: #8A4B0F; font-size: 13px; line-height: 1.6;
+    padding: 10px 12px; border-radius: 10px; margin: 12px 0;
+  }
+  .study-card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px 16px; margin-top: 14px; }
+  .study-card h3 { font-size: 14px; color: var(--primary-dark); margin: 0 0 10px; }
+  .yw-line { text-align: center; font-size: 19px; font-weight: 700; line-height: 1.9; }
+  .prose-line { font-size: 16px; line-height: 1.9; margin-bottom: 6px; }
+  .analects-item { margin-bottom: 12px; }
+  .analects-item .zh { font-size: 16px; line-height: 1.7; }
+  .analects-item .src { font-size: 12px; color: #999; margin-left: 6px; }
+  .analects-item .tr { font-size: 13.5px; color: var(--text-dim); font-style: italic; margin-top: 3px; padding-left: 4px; }
+  .note-row { font-size: 14px; line-height: 1.9; }
+  .note-row b { color: var(--primary-dark); }
+  .tr-line { font-size: 14.5px; color: var(--text-dim); font-style: italic; line-height: 1.8; margin-bottom: 4px; }
+  .study-next-btn {
+    width: 100%; margin-top: 20px; padding: 15px; border: none; border-radius: 14px;
+    font-size: 17px; font-weight: 800; color: #fff; background: var(--primary);
+    box-shadow: 0 4px 0 var(--primary-dark);
+  }
+  .study-next-btn:active { transform: translateY(3px); box-shadow: none; }
+
+  /* ---------- Test screen ---------- */
+  .test-wrap { flex: 1; display: flex; flex-direction: column; padding: 12px 16px 24px; }
+  .test-topbar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .progressbar-track { flex: 1; height: 14px; background: #E5E9F0; border-radius: 999px; overflow: hidden; }
+  .progressbar-fill { height: 100%; background: var(--success); border-radius: 999px; transition: width .3s ease; }
+  .hearts { display: flex; gap: 3px; font-size: 17px; min-width: 76px; justify-content: flex-end; }
+  .q-type-badge { font-size: 11px; font-weight: 700; color: #fff; background: var(--primary); padding: 3px 9px; border-radius: 999px; display: inline-block; margin-bottom: 8px; }
+  .q-type-badge.cloze { background: var(--gold); }
+  .q-card { background: var(--card); border-radius: var(--radius); padding: 20px 18px; box-shadow: var(--shadow); margin-bottom: 16px; }
+  .q-card .label { font-size: 12px; color: var(--text-dim); margin-bottom: 8px; }
+  .q-card .prompt-text { font-size: 18px; font-weight: 700; line-height: 1.7; }
+  .answer-box { width: 100%; min-height: 90px; font-size: 17px; padding: 14px; border-radius: 14px; border: 2px solid #E1E6EE; font-weight: 600; color: var(--text); resize: none; font-family: inherit; }
+  .answer-box.correct { border-color: var(--success); background: var(--success-bg); color: var(--success); }
+  .answer-box.wrong { border-color: var(--danger); background: var(--danger-bg); color: var(--danger); }
+  .test-actions { display: flex; gap: 10px; margin-top: 10px; }
+  .hint-btn { background: #EEF1F7; border: none; border-radius: 14px; padding: 0 16px; font-weight: 700; color: var(--text-dim); font-size: 14px; }
+  .check-btn { flex: 1; padding: 15px; border: none; border-radius: 14px; font-size: 17px; font-weight: 800; color: #fff; background: var(--locked); box-shadow: 0 4px 0 #A7AEB9; }
+  .check-btn.active { background: var(--success); box-shadow: 0 4px 0 #17824B; }
+  .feedback-bar { position: sticky; bottom: 0; left: 0; right: 0; padding: 14px 16px calc(14px + env(safe-area-inset-bottom)); margin: 16px -16px -24px; border-radius: 18px 18px 0 0; }
+  .feedback-bar.correct { background: var(--success-bg); }
+  .feedback-bar.wrong { background: var(--danger-bg); }
+  .feedback-text { font-weight: 800; font-size: 16px; margin-bottom: 4px; }
+  .feedback-bar.correct .feedback-text { color: var(--success); }
+  .feedback-bar.wrong .feedback-text { color: var(--danger); }
+  .feedback-answer { font-size: 15px; color: var(--text-dim); margin-bottom: 10px; line-height: 1.6; }
+  .btn-primary { width: 100%; padding: 15px; border: none; border-radius: 14px; font-size: 17px; font-weight: 800; color: #fff; background: var(--primary); box-shadow: 0 4px 0 var(--primary-dark); }
+  .btn-primary:active { transform: translateY(3px); box-shadow: none; }
+  .feedback-bar.wrong .btn-primary { background: var(--danger); box-shadow: 0 4px 0 #B23238; }
+
+  /* ---------- Summary screen ---------- */
+  .summary-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 30px 20px; text-align: center; }
+  .summary-emoji { font-size: 58px; margin-bottom: 8px; }
+  .summary-title { font-size: 22px; font-weight: 800; margin: 0 0 4px; }
+  .summary-sub { font-size: 14px; color: var(--text-dim); margin-bottom: 20px; }
+  .summary-stars { font-size: 34px; letter-spacing: 6px; margin-bottom: 18px; }
+  .summary-stats { display: flex; gap: 14px; margin-bottom: 26px; width: 100%; max-width: 320px; }
+  .summary-stat-card { flex: 1; background: var(--card); border-radius: 14px; padding: 14px 8px; box-shadow: var(--shadow); }
+  .summary-stat-card .num { font-size: 20px; font-weight: 800; color: var(--primary-dark); }
+  .summary-stat-card .label { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+  .miss-list { width: 100%; max-width: 340px; background: var(--card); border-radius: 14px; box-shadow: var(--shadow); padding: 14px; margin-bottom: 22px; text-align: left; }
+  .miss-list h3 { font-size: 14px; margin: 0 0 8px; color: var(--text-dim); }
+  .miss-item { font-size: 14px; padding: 6px 0; border-bottom: 1px solid #EEF1F7; }
+  .miss-item:last-child { border-bottom: none; }
+  .summary-actions { width: 100%; max-width: 320px; display: flex; flex-direction: column; gap: 10px; }
+  .btn-secondary { width: 100%; padding: 14px; border-radius: 14px; font-size: 16px; font-weight: 700; background: var(--card); color: var(--primary-dark); border: 2px solid var(--primary); }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+const PIECES = [{"id":1,"title":"观沧海","author":"曹操","dynasty":"东汉","type":"poem","lines":["东临碣石，以观沧海。","水何澹澹，山岛竦峙。","树木丛生，百草丰茂。","秋风萧瑟，洪波涌起。","日月之行，若出其中；","星汉灿烂，若出其里。","幸甚至哉，歌以咏志。"],"units":["东临碣石，以观沧海。","水何澹澹，山岛竦峙。","树木丛生，百草丰茂。","秋风萧瑟，洪波涌起。","日月之行，若出其中；","星汉灿烂，若出其里。","幸甚至哉，歌以咏志。"],"notes":[["临","到达、登上"],["澹澹（dàn dàn）","水波荡漾的样子"],["竦峙（sǒng zhì）","高高地耸立（竦、峙都是\"耸立\"的意思）"],["萧瑟","形容风吹树木的声音"],["星汉","银河"],["幸甚至哉，歌以咏志","这是合乐时所加的套语，与正文内容没有直接关系"]],"translation":["向东登上碣石山，来观赏大海。","海水多么宽阔浩荡，山岛高高地耸立在海边。","山上树木丛生，各种草长得很茂盛。","秋风吹动树木发出悲凉的声音，海中涌起巨大的波涛。","太阳和月亮的运行，好像是从这浩瀚的海洋中产生的；灿烂的银河，好像是从这浩瀚的海洋中产生的。","真是幸运极了，用歌唱来表达自己的志向。"],"clozes":[{"q":"《观沧海》中最能表现诗人博大胸怀、想象奇特、气吞山河的诗句是：______，______；______，______。","a":"日月之行，若出其中；星汉灿烂，若出其里。"},{"q":"《观沧海》中描写大海水波荡漾、山岛耸立的诗句是：______，______。","a":"水何澹澹，山岛竦峙。"},{"q":"《观沧海》中点明地点、总领全篇写景的诗句是：______，______。","a":"东临碣石，以观沧海。"}]},{"id":2,"title":"闻王昌龄左迁龙标遥有此寄","author":"李白","dynasty":"唐","type":"poem","lines":["杨花落尽子规啼，闻道龙标过五溪。","我寄愁心与明月，随风直到夜郎西。"],"units":["杨花落尽子规啼，闻道龙标过五溪。","我寄愁心与明月，随风直到夜郎西。"],"notes":[["左迁","古人以右为尊，左迁即降职、贬官"],["龙标","古地名，这里指王昌龄（以其被贬之地代称其人）"],["子规","杜鹃鸟，叫声凄切，古诗中常用来渲染悲凉气氛"],["五溪","湖南、贵州交界处的雄溪、樠溪、酉溪、潕溪、辰溪的合称"],["夜郎","汉代西南地区古国名，这里泛指湖南西部、贵州一带"]],"translation":["杨花落尽了，子规鸟不住地啼叫，听说你被贬到龙标，一路要经过五溪。","我把忧愁的心思寄托给天上的明月，愿它随着风一直陪着你到夜郎以西。"],"clozes":[{"q":"诗中运用拟人手法，把明月人格化，表达对友人牵挂关切的诗句是：______，______。","a":"我寄愁心与明月，随风直到夜郎西。"},{"q":"诗中点明写作季节、渲染凄凉气氛的诗句是：______，______。","a":"杨花落尽子规啼，闻道龙标过五溪。"}],"warn":"易错提醒：最后一句是\"随风直到夜郎西\"，不是网上常见误传的\"随君直到夜郎西\"——这是本诗默写最容易失分的一个字，请务必让孩子写\"风\"。"},{"id":3,"title":"次北固山下","author":"王湾","dynasty":"唐","type":"poem","lines":["客路青山外，行舟绿水前。","潮平两岸阔，风正一帆悬。","海日生残夜，江春入旧年。","乡书何处达？归雁洛阳边。"],"units":["客路青山外，行舟绿水前。","潮平两岸阔，风正一帆悬。","海日生残夜，江春入旧年。","乡书何处达？归雁洛阳边。"],"notes":[["次","停泊、停宿"],["客路","旅人前行的路"],["潮平两岸阔","潮水涨满，两岸之间的水面显得宽阔"],["海日生残夜","夜将尽未尽之时，一轮红日从海上升起"],["江春入旧年","旧年未过，江上已呈现春意"],["乡书","家信"]],"translation":["旅途行进在青山之外，船儿在绿水前航行。","潮水涨满，两岸之间水面开阔，顺风行船，一片帆高高挂起。","夜色将尽，一轮红日已从海上升起；旧年还未过去，江上已透出春意。","家信要寄到哪里呢？希望北归的大雁能捎到洛阳去。"],"clozes":[{"q":"《次北固山下》中被誉为\"形容景物，妙绝千古\"，蕴含新旧交替自然理趣的诗句是：______，______。","a":"海日生残夜，江春入旧年。"},{"q":"诗中描写江水浩渺、顺风行船景象的诗句是：______，______。","a":"潮平两岸阔，风正一帆悬。"},{"q":"诗中直接抒发思乡之情的诗句是：______？______。","a":"乡书何处达？归雁洛阳边。"}]},{"id":4,"title":"天净沙·秋思","author":"马致远","dynasty":"元","type":"ci","lines":["枯藤老树昏鸦，小桥流水人家，古道西风瘦马。","夕阳西下，","断肠人在天涯。"],"units":["枯藤老树昏鸦，","小桥流水人家，","古道西风瘦马。","夕阳西下，","断肠人在天涯。"],"notes":[["昏鸦","黄昏时归巢的乌鸦"],["古道","已经废弃不堪再用的古老驿道"],["西风","寒冷、萧瑟的秋风"],["断肠人","形容内心极度悲伤的人，这里指漂泊在外、思念故乡的游子"],["天涯","天边，指遥远的地方"]],"translation":["枯藤缠绕着老树，黄昏时归巢的乌鸦栖息在树上；小桥下溪水流淌，溪边有几户人家；古老荒凉的驿道上，秋风萧瑟，一匹瘦马艰难前行。","夕阳向西缓缓落下，漂泊天涯的游子还在天边独自伤神。"],"clozes":[{"q":"曲中运用九个名词组合，勾勒出一幅萧瑟秋景图的三句是：______，______，______。","a":"枯藤老树昏鸦，小桥流水人家，古道西风瘦马。"},{"q":"曲中直接点明主旨、抒发游子思乡悲愁之情的诗句是：______，______。","a":"夕阳西下，断肠人在天涯。"}]},{"id":5,"title":"夜雨寄北","author":"李商隐","dynasty":"唐","type":"poem","lines":["君问归期未有期，巴山夜雨涨秋池。","何当共剪西窗烛，却话巴山夜雨时。"],"units":["君问归期未有期，巴山夜雨涨秋池。","何当共剪西窗烛，却话巴山夜雨时。"],"notes":[["寄北","寄给北方的人（一般认为是寄给妻子或友人）"],["巴山","泛指川东一带的山，这里指作者所在的巴蜀地区"],["涨秋池","秋雨使池塘水涨"],["何当","何时能够"],["共剪西窗烛","一起在西窗下剪烛芯（烛芯燃烧结花需要剪去，这里指秉烛夜谈）"],["却话","回头说起，追述"]],"translation":["你问我回家的日期，我还没有确定的日期；此刻巴山夜雨绵绵，秋天的池塘水已涨满。","什么时候才能与你一起在西窗下剪烛夜谈，再回头对你说起今晚巴山夜雨时的情景呢？"],"clozes":[{"q":"诗中想象来日重逢、剪烛夜谈的诗句是：______，______。","a":"何当共剪西窗烛，却话巴山夜雨时。"},{"q":"诗中点明写作时间、地点，并渲染孤寂氛围的诗句是：______，______。","a":"君问归期未有期，巴山夜雨涨秋池。"}]},{"id":6,"title":"《论语》十二章","author":"孔子及其弟子","dynasty":"春秋","type":"analects","items":[{"source":"《学而》","text":"子曰：\"学而时习之，不亦说乎？有朋自远方来，不亦乐乎？人不知而不愠，不亦君子乎？\"","tr":"学习后按时温习，不也高兴吗？有志同道合的人从远方来，不也快乐吗？人家不了解我，我却不恼怒，不也是君子吗？"},{"source":"《学而》","text":"曾子曰：\"吾日三省吾身：为人谋而不忠乎？与朋友交而不信乎？传不习乎？\"","tr":"我每天多次反省自己：替别人办事是不是尽心竭力了呢？跟朋友交往是不是诚实可信了呢？老师传授的知识是不是复习了呢？"},{"source":"《为政》","text":"子曰：\"吾十有五而志于学，三十而立，四十而不惑，五十而知天命，六十而耳顺，七十而从心所欲，不逾矩。\"","tr":"我十五岁开始立志学习，三十岁能够自立，四十岁能不被外界事物迷惑，五十岁知道了天命，六十岁能听得进不同的意见，七十岁能随心所欲而不越出规矩。"},{"source":"《为政》","text":"子曰：\"温故而知新，可以为师矣。\"","tr":"温习学过的知识，可以从中获得新的理解与体会，凭借这一点就可以做老师了。"},{"source":"《为政》","text":"子曰：\"学而不思则罔，思而不学则殆。\"","tr":"只学习却不思考，就会感到迷茫而无所得；只空想却不学习，就会疑惑不解。"},{"source":"《雍也》","text":"子曰：\"贤哉，回也！一箪食，一瓢饮，在陋巷，人不堪其忧，回也不改其乐。贤哉，回也！\"","tr":"颜回的品质多么高尚啊！一竹篮饭，一瓢水，住在简陋的小巷子里，别人都忍受不了这种穷困清苦，颜回却没有改变他的快乐。颜回的品质多么高尚啊！"},{"source":"《雍也》","text":"子曰：\"知之者不如好之者，好之者不如乐之者。\"","tr":"懂得学习的人不如爱好学习的人，爱好学习的人不如以学习为乐趣的人。"},{"source":"《述而》","text":"子曰：\"饭疏食，饮水，曲肱而枕之，乐亦在其中矣。不义而富且贵，于我如浮云。\"","tr":"吃粗粮，喝冷水，弯着胳膊当枕头，乐趣也就在这中间了。用不正当的手段得来的富贵，对我来说就像天上的浮云一样。"},{"source":"《述而》","text":"子曰：\"三人行，必有我师焉。择其善者而从之，其不善者而改之。\"","tr":"几个人一起走路，其中必定有可以做我老师的人。选择他们的优点来学习，看到他们的缺点就要对照自己改正。"},{"source":"《子罕》","text":"子在川上曰：\"逝者如斯夫，不舍昼夜。\"","tr":"孔子站在河边说：\"时光像河水一样流去，日夜不停。\""},{"source":"《子罕》","text":"子曰：\"三军可夺帅也，匹夫不可夺志也。\"","tr":"军队可以被夺去主帅，但一个人的志向却不能被强迫改变。"},{"source":"《子张》","text":"子夏曰：\"博学而笃志，切问而近思，仁在其中矣。\"","tr":"广泛地学习并且能坚守自己的志向，恳切地提问并且多思考当前的事情，仁德就在其中了。"}],"notes":[["说（yuè）","同\"悦\"，愉快"],["愠（yùn）","生气，恼怒"],["三省（xǐng）","多次反省"],["传（chuán）","老师传授的知识"],["罔","迷惑，意思是感到迷茫而无所得"],["殆（dài）","疑惑"],["箪（dān）","盛饭用的圆形竹器"],["肱（gōng）","胳膊"],["笃志","志向坚定"],["切问而近思","恳切地发问求教，多考虑当前的事"]],"clozes":[{"q":"阐述\"学\"与\"思\"辩证关系的句子是：______，______。","a":"学而不思则罔，思而不学则殆。"},{"q":"强调应随时虚心向别人学习的句子是：______。______，______。","a":"三人行，必有我师焉。择其善者而从之，其不善者而改之。"},{"q":"孔子称赞颜回安贫乐道、以学为乐的句子是：______，______，______，______。","a":"一箪食，一瓢饮，在陋巷，人不堪其忧，回也不改其乐。"}],"warn":"默写提醒：第6章开头和结尾都有\"贤哉，回也！\"（首尾呼应），很多摘录会漏掉结尾这一句，默写时务必两处都写全。"},{"id":7,"title":"咏雪","author":"刘义庆","dynasty":"南朝宋","type":"prose","text":"谢太傅寒雪日内集，与儿女讲论文义。俄而雪骤，公欣然曰：\"白雪纷纷何所似？\"兄子胡儿曰：\"撒盐空中差可拟。\"兄女曰：\"未若柳絮因风起。\"公大笑乐。即公大兄无奕女，左将军王凝之妻也。","units":["谢太傅寒雪日内集，","与儿女讲论文义。","俄而雪骤，","公欣然曰：\"白雪纷纷何所似？\"","兄子胡儿曰：\"撒盐空中差可拟。\"","兄女曰：\"未若柳絮因风起。\"","公大笑乐。","即公大兄无奕女，左将军王凝之妻也。"],"notes":[["内集","把家里人聚集在一起"],["儿女","这里泛指子侄辈"],["俄而","不久，一会儿"],["骤","急（这里指雪下得急）"],["差可拟","差不多可以相比"],["未若","不如，比不上"],["因风起","乘风而起"]],"translation":"谢太傅在一个寒冷的下雪天把家人聚集在一起，跟子侄辈谈论诗文。不一会儿雪下得急了，太傅高兴地说：\"这纷纷扬扬的白雪像什么呢？\"他哥哥的儿子胡儿说：\"跟把盐撒在空中差不多可以相比。\"他哥哥的女儿说：\"不如比作柳絮乘风飞舞。\"太傅高兴地大笑起来。她就是谢太傅大哥谢无奕的女儿，左将军王凝之的妻子。","clozes":[{"q":"文中\"兄女\"将雪比作柳絮的原句是：______。","a":"未若柳絮因风起。"},{"q":"交代\"兄女\"身份的句子是：______，______。","a":"即公大兄无奕女，左将军王凝之妻也。"}],"warn":"默写提醒：最后一句\"即公大兄无奕女，左将军王凝之妻也\"是正文的一部分（交代谢道韫的身份），有些摘录会省略，默写时不要漏写。"},{"id":8,"title":"陈太丘与友期行","author":"刘义庆","dynasty":"南朝宋","type":"prose","text":"陈太丘与友期行，期日中。过中不至，太丘舍去，去后乃至。元方时年七岁，门外戏。客问元方：\"尊君在不？\"答曰：\"待君久不至，已去。\"友人便怒曰：\"非人哉！与人期行，相委而去。\"元方曰：\"君与家君期日中。日中不至，则是无信；对子骂父，则是无礼。\"友人惭，下车引之。元方入门不顾。","units":["陈太丘与友期行，期日中。","过中不至，太丘舍去，去后乃至。","元方时年七岁，门外戏。","客问元方：\"尊君在不？\"","答曰：\"待君久不至，已去。\"","友人便怒曰：\"非人哉！与人期行，相委而去。\"","元方曰：\"君与家君期日中。日中不至，则是无信；对子骂父，则是无礼。\"","友人惭，下车引之。","元方入门不顾。"],"notes":[["期行","相约同行"],["期日中","约定的时间是正午"],["舍去","不再等候就离开了"],["尊君","对别人父亲的尊称"],["不（fǒu）","同\"否\""],["相委而去","丢下别人先离开了"],["家君","对人称自己的父亲"],["引","拉，牵拉"],["顾","回头看"]],"translation":"陈太丘和朋友相约同行，约定的时间是正午。过了正午朋友还没有到，陈太丘不再等候就离开了，他离开后朋友才到。元方当时年七岁，正在门外玩耍。客人问元方：\"你父亲在吗？\"元方回答：\"等了您很久您却还没有到，他已经离开了。\"友人便生气地说：\"真不是人啊！和别人相约同行，却丢下别人先离开了。\"元方说：\"您与我父亲约定的时间是正午。您正午不到，就是不讲信用；对着孩子骂他的父亲，就是没有礼貌。\"友人感到惭愧，下车拉元方（表示亲近），元方头也不回地走进了自家的门。","clozes":[{"q":"文中友人意识到自己错误、表示歉意的动作描写是：______，______。","a":"友人惭，下车引之。"},{"q":"表现元方性格刚正不阿、落落大方的一句是：______。","a":"元方入门不顾。"}]},{"id":9,"title":"诫子书","author":"诸葛亮","dynasty":"三国·蜀汉","type":"prose","text":"夫君子之行，静以修身，俭以养德。非淡泊无以明志，非宁静无以致远。夫学须静也，才须学也，非学无以广才，非志无以成学。淫慢则不能励精，险躁则不能治性。年与时驰，意与日去，遂成枯落，多不接世，悲守穷庐，将复何及！","units":["夫君子之行，静以修身，俭以养德。","非淡泊无以明志，非宁静无以致远。","夫学须静也，才须学也，","非学无以广才，非志无以成学。","淫慢则不能励精，险躁则不能治性。","年与时驰，意与日去，","遂成枯落，多不接世，","悲守穷庐，将复何及！"],"notes":[["静以修身","以宁静专一来修养身心"],["淡泊","内心恬淡，不慕名利"],["致远","达到远大目标"],["淫慢","放纵懈怠（淫，放纵；慢，懈怠）"],["励精","振奋精神"],["险躁","轻薄浮躁（险，轻薄；躁，浮躁）"],["治性","修养性情"],["驰","疾行，指迅速逝去"],["枯落","凋落，衰残，比喻人年老志衰、无所作为"],["接世","对社会有所贡献"],["穷庐","穷困潦倒之人住的陋室"]],"translation":"君子的品行操守，要靠内心安静精一来修养身心，要靠俭朴节约来培养品德。不看轻世俗的名利就无法明确自己的志向，不心境安宁清静就无法达到远大的目标。学习必须静下心来专心致志，增长才干必须努力学习。不努力学习就无法增长才干，没有志向就无法在学习上获得成就。放纵懈怠就无法振奋精神，轻薄浮躁就不能陶冶性情。年华随着时光而飞驰，意志随岁月而消磨，最终枯败凋零，大多不能对社会有所贡献，只能悲哀地坐守着穷困的居舍，那时再悔恨又怎么来得及呢！","clozes":[{"q":"诸葛亮认为能达到\"明志\"和\"致远\"的条件分别是\"淡泊\"和\"宁静\"，原句是：______，______。","a":"非淡泊无以明志，非宁静无以致远。"},{"q":"文中阐述\"静\"与\"学\"\"才\"\"志\"之间关系的句子是：______，______，______，______。","a":"夫学须静也，才须学也，非学无以广才，非志无以成学。"}],"warn":"常见异文提醒：部分古籍版本作\"澹泊\"\"慆慢\"\"冶性\"，教材通行本用\"淡泊\"\"淫慢\"\"治性\"，请以孩子课本实际文字为准。"},{"id":10,"title":"狼","author":"蒲松龄","dynasty":"清","type":"prose","paragraphs":["一屠晚归，担中肉尽，止有剩骨。途中两狼，缀行甚远。","屠惧，投以骨。一狼得骨止，一狼仍从。复投之，后狼止而前狼又至。骨已尽矣，而两狼之并驱如故。","屠大窘，恐前后受其敌。顾野有麦场，场主积薪其中，苫蔽成丘。屠乃奔倚其下，弛担持刀。狼不敢前，眈眈相向。","少时，一狼径去，其一犬坐于前。久之，目似瞑，意暇甚。屠暴起，以刀劈狼首，又数刀毙之。方欲行，转视积薪后，一狼洞其中，意将隧入以攻其后也。身已半入，止露尻尾。屠自后断其股，亦毙之。乃悟前狼假寐，盖以诱敌。","狼亦黠矣，而顷刻两毙，禽兽之变诈几何哉？止增笑耳。"],"units":["一屠晚归，担中肉尽，止有剩骨。","途中两狼，缀行甚远。","屠惧，投以骨。","一狼得骨止，一狼仍从。","复投之，后狼止而前狼又至。","骨已尽矣，而两狼之并驱如故。","屠大窘，恐前后受其敌。","顾野有麦场，场主积薪其中，苫蔽成丘。","屠乃奔倚其下，弛担持刀。","狼不敢前，眈眈相向。","少时，一狼径去，其一犬坐于前。","久之，目似瞑，意暇甚。","屠暴起，以刀劈狼首，又数刀毙之。","方欲行，转视积薪后，一狼洞其中，意将隧入以攻其后也。","身已半入，止露尻尾。","屠自后断其股，亦毙之。","乃悟前狼假寐，盖以诱敌。","狼亦黠矣，而顷刻两毙，禽兽之变诈几何哉？","止增笑耳。"],"notes":[["缀行","紧跟着走"],["窘","处境困迫、为难"],["顾","看，视"],["苫蔽成丘","覆盖成小山一样"],["弛担持刀","放下担子拿起刀"],["眈眈相向","瞪眼朝着（屠户）"],["犬坐于前","像狗一样蹲坐在前面（\"犬\"作状语，像狗一样）"],["意暇甚","神情很悠闲"],["洞其中","在其中打洞"],["隧入","从通道进入"],["尻（kāo）","屁股"],["黠（xiá）","狡猾"],["变诈","巧变诡诈"]],"translation":["一个屠户傍晚回家，担子里的肉已经卖完了，只剩下一些骨头。路上遇到两只狼，紧跟着他走了很远。","屠户害怕了，把骨头扔给狼。一只狼得到骨头停下了，另一只狼仍然跟着。他又扔骨头，后得骨头的狼停下了，先得骨头的狼又追上来。骨头已经扔完了，可是两只狼像原来一样一起追赶屠户。","屠户处境十分危急，担心前后受到狼的攻击。他看见田野里有个打麦场，场主人把柴草堆积在场里，覆盖成小山一样。屠户于是跑过去靠在柴草堆下，放下担子拿起屠刀。两只狼不敢上前，瞪着眼睛朝着屠户。","过了一会儿，一只狼径直离开了，另一只狼像狗一样蹲坐在前面。过了很久，那只狼的眼睛好像闭上了，神情十分悠闲。屠户突然跳起，用刀劈狼的脑袋，又砍了几刀把狼杀死。屠户正想走，转身看柴草堆后面，另一只狼正在其中打洞，打算要从通道进入，来攻击屠户的后面。狼的身子已经进去了一半，只露出屁股和尾巴。屠户从后面砍断了狼的大腿，也把这只狼杀死了。这才明白前面那只狼假装睡觉，原来是用来诱惑敌方的。","狼也太狡猾了，可是一会儿两只狼都被杀死了，禽兽的欺骗手段能有多少呢？只不过增加笑料罢了。"],"clozes":[{"q":"文中表现屠户机智勇敢、突然袭击杀死狼的句子是：______，______。","a":"屠暴起，以刀劈狼首，又数刀毙之。"},{"q":"文末点明主旨、讽刺狼的狡诈最终自取灭亡的议论句是：______？______。","a":"禽兽之变诈几何哉？止增笑耳。"}]}];
+</script>
+<script>
+(function () {
+  "use strict";
+
+  const STORAGE_KEY = "reciteGameStateV1";
+  let persistOK = true;
+  function loadState() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch (e) { persistOK = false; }
+    return null;
+  }
+  function saveState() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+    catch (e) { persistOK = false; }
+  }
+
+  let state = loadState() || { xp: 0, studied: {}, mastered: {} };
+  if (!state.studied) state.studied = {};
+  if (!state.mastered) state.mastered = {};
+
+  function shuffle(arr) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  // Strip whitespace and common CJK/ASCII punctuation so typed answers are
+  // graded on the actual characters, not on punctuation/IME quirks.
+  function normalize(s) {
+    return String(s || "")
+      .replace(/[，。！？；：、""''《》〈〉「」『』\s,.!?;:'"<>]/g, "")
+      .trim();
+  }
+
+  function unitsOf(piece) {
+    if (piece.units) return piece.units;
+    if (piece.items) return piece.items.map(it => it.text);
+    return [];
+  }
+
+  const app = document.getElementById("app");
+  let screen = "map"; // map | study | test | summary
+  let studyState = null;
+  let testState = null;
+
+  function go(newScreen) { screen = newScreen; render(); }
+
+  /* ---------------- MAP ---------------- */
+  function statHeader() {
+    const div = document.createElement("div");
+    div.className = "statbar";
+    div.innerHTML =
+      '<div class="brand">📜 古诗文背诵闯关</div>' +
+      '<div class="stat"><span class="emoji">⭐</span>' + state.xp + '</div>';
+    return div;
+  }
+
+  function renderMap() {
+    app.innerHTML = "";
+    app.appendChild(statHeader());
+    const wrap = document.createElement("div");
+    wrap.className = "map-wrap";
+    wrap.innerHTML = '<div class="map-title"><h1>七上必背10篇</h1><p>先学习原文，再默写自测，全部答对才算过关</p></div>';
+
+    const grid = document.createElement("div");
+    grid.className = "grid";
+
+    PIECES.forEach((p) => {
+      const needsStudy = !state.studied[p.id];
+      const masteredInfo = state.mastered[p.id];
+      const card = document.createElement("button");
+      card.className = "piece-card";
+      card.innerHTML =
+        '<div class="icon">' + (needsStudy ? "📖" : "📗") + '</div>' +
+        '<div class="pnum">' + p.id + '</div>' +
+        '<div class="ptitle">' + p.title + '</div>' +
+        '<div class="pauthor">' + p.author + '·' + p.dynasty + '</div>' +
+        (masteredInfo ? '<div class="stars">' + "★".repeat(masteredInfo.stars) + "☆".repeat(3 - masteredInfo.stars) + '</div>' : '') +
+        (needsStudy ? '<div class="tag">先学习</div>' : '');
+      card.addEventListener("click", () => needsStudy ? startStudy(p) : startTest(p));
+      grid.appendChild(card);
+
+      if (!needsStudy) {
+        const restudy = document.createElement("button");
+        restudy.className = "restudy";
+        restudy.textContent = "📖 复习原文";
+        restudy.addEventListener("click", (e) => { e.stopPropagation(); startStudy(p); });
+        card.appendChild(document.createElement("br"));
+        card.appendChild(restudy);
+      }
+    });
+    wrap.appendChild(grid);
+
+    if (!persistOK) {
+      const warn = document.createElement("p");
+      warn.className = "storage-warning";
+      warn.textContent = "当前浏览器无法保存进度，关闭页面后本次记录会丢失";
+      wrap.appendChild(warn);
+    }
+    app.appendChild(wrap);
+  }
+
+  /* ---------------- STUDY ---------------- */
+  function startStudy(piece) {
+    studyState = { piece };
+    go("study");
+  }
+
+  function renderStudy() {
+    app.innerHTML = "";
+    const piece = studyState.piece;
+    const wrap = document.createElement("div");
+    wrap.className = "study-wrap";
+
+    const topbar = document.createElement("div");
+    topbar.className = "study-topbar";
+    const closeBtn = document.createElement("button");
+    closeBtn.className = "close-btn";
+    closeBtn.textContent = "✕";
+    closeBtn.addEventListener("click", () => go("map"));
+    topbar.appendChild(closeBtn);
+    const head = document.createElement("div");
+    head.innerHTML = '<div class="study-heading">' + piece.id + '. ' + piece.title + '</div><div class="study-sub">' + piece.author + '·' + piece.dynasty + '</div>';
+    topbar.appendChild(head);
+    wrap.appendChild(topbar);
+
+    if (piece.warn) {
+      const w = document.createElement("div");
+      w.className = "warn-box";
+      w.textContent = "⚠ " + piece.warn;
+      wrap.appendChild(w);
+    }
+
+    // 原文
+    const origCard = document.createElement("div");
+    origCard.className = "study-card";
+    let origHTML = "<h3>原文</h3>";
+    if (piece.type === "poem" || piece.type === "ci") {
+      origHTML += piece.lines.map(l => '<div class="yw-line">' + l + '</div>').join("");
+    } else if (piece.type === "prose") {
+      const paras = piece.paragraphs || [piece.text];
+      origHTML += paras.map(t => '<div class="prose-line">' + t + '</div>').join("");
+    } else if (piece.type === "analects") {
+      origHTML += piece.items.map((it, i) =>
+        '<div class="analects-item"><span class="zh"><b>' + (i + 1) + '.</b> ' + it.text + '</span><span class="src">' + it.source + '</span>' +
+        '<div class="tr">' + it.tr + '</div></div>'
+      ).join("");
+    }
+    origCard.innerHTML = origHTML;
+    wrap.appendChild(origCard);
+
+    // 注释
+    const noteCard = document.createElement("div");
+    noteCard.className = "study-card";
+    noteCard.innerHTML = "<h3>注释</h3>" + piece.notes.map(([term, exp]) =>
+      '<div class="note-row"><b>' + term + '</b>　' + exp + '</div>'
+    ).join("");
+    wrap.appendChild(noteCard);
+
+    // 翻译 (analects already has inline translation per item)
+    if (piece.type !== "analects") {
+      const trCard = document.createElement("div");
+      trCard.className = "study-card";
+      const trLines = Array.isArray(piece.translation) ? piece.translation : [piece.translation];
+      trCard.innerHTML = "<h3>翻译</h3>" + trLines.map(t => '<div class="tr-line">' + t + '</div>').join("");
+      wrap.appendChild(trCard);
+    }
+
+    const nextBtn = document.createElement("button");
+    nextBtn.className = "study-next-btn";
+    nextBtn.textContent = "背熟了，开始默写自测 →";
+    nextBtn.addEventListener("click", () => startTest(piece));
+    wrap.appendChild(nextBtn);
+
+    app.appendChild(wrap);
+  }
+
+  /* ---------------- TEST ---------------- */
+  function buildQuestionPool(piece) {
+    const units = unitsOf(piece);
+    const chainQs = units.map((u, i) => ({
+      qtype: "chain",
+      label: i === 0 ? "《" + piece.title + "》第一句是？" : "接下来一句是？",
+      prompt: i === 0 ? "（" + piece.title + " · " + piece.author + "）" : units[i - 1],
+      answer: u,
+    }));
+    const clozeQs = (piece.clozes || []).map(c => ({
+      qtype: "cloze",
+      label: "情境默写",
+      prompt: c.q,
+      answer: c.a,
+    }));
+    return shuffle(chainQs.concat(clozeQs));
+  }
+
+  function startTest(piece) {
+    testState = {
+      piece,
+      questions: buildQuestionPool(piece),
+      idx: 0,
+      hearts: 5,
+      correctCount: 0,
+      misses: [],
+      revealed: false,
+      checked: false,
+    };
+    go("test");
+  }
+
+  function renderTest() {
+    app.innerHTML = "";
+    const ts = testState;
+    const q = ts.questions[ts.idx];
+
+    const wrap = document.createElement("div");
+    wrap.className = "test-wrap";
+
+    const topbar = document.createElement("div");
+    topbar.className = "test-topbar";
+    const closeBtn = document.createElement("button");
+    closeBtn.className = "close-btn";
+    closeBtn.textContent = "✕";
+    closeBtn.addEventListener("click", () => go("map"));
+    const track = document.createElement("div");
+    track.className = "progressbar-track";
+    const fill = document.createElement("div");
+    fill.className = "progressbar-fill";
+    fill.style.width = Math.round((ts.idx / ts.questions.length) * 100) + "%";
+    track.appendChild(fill);
+    const hearts = document.createElement("div");
+    hearts.className = "hearts";
+    hearts.textContent = "❤️".repeat(ts.hearts) + "🤍".repeat(5 - ts.hearts);
+    topbar.appendChild(closeBtn);
+    topbar.appendChild(track);
+    topbar.appendChild(hearts);
+    wrap.appendChild(topbar);
+
+    const qCard = document.createElement("div");
+    qCard.className = "q-card";
+    qCard.innerHTML =
+      '<div class="q-type-badge' + (q.qtype === "cloze" ? " cloze" : "") + '">' + (q.qtype === "cloze" ? "情境默写" : "接龙默写") + '</div>' +
+      '<div class="label">' + (q.qtype === "chain" ? q.label : "补全下面的句子") + '</div>' +
+      '<div class="prompt-text">' + q.prompt + '</div>';
+    wrap.appendChild(qCard);
+
+    const textarea = document.createElement("textarea");
+    textarea.className = "answer-box";
+    textarea.placeholder = "在此默写...";
+    wrap.appendChild(textarea);
+
+    const actions = document.createElement("div");
+    actions.className = "test-actions";
+    const hintBtn = document.createElement("button");
+    hintBtn.className = "hint-btn";
+    hintBtn.textContent = "提示";
+    hintBtn.addEventListener("click", () => {
+      textarea.value = q.answer.slice(0, 2);
+      textarea.focus();
+    });
+    const checkBtn = document.createElement("button");
+    checkBtn.className = "check-btn";
+    checkBtn.textContent = "检查";
+    textarea.addEventListener("input", () => {
+      checkBtn.classList.toggle("active", textarea.value.trim().length > 0);
+    });
+    checkBtn.addEventListener("click", () => {
+      if (!textarea.value.trim() || ts.checked) return;
+      const correct = normalize(textarea.value) === normalize(q.answer);
+      ts.checked = true;
+      textarea.classList.add(correct ? "correct" : "wrong");
+      textarea.disabled = true;
+      submitAnswer(q, correct);
+    });
+    actions.appendChild(hintBtn);
+    actions.appendChild(checkBtn);
+    wrap.appendChild(actions);
+
+    app.appendChild(wrap);
+    setTimeout(() => textarea.focus(), 50);
+  }
+
+  function submitAnswer(q, correct) {
+    const ts = testState;
+    if (correct) {
+      ts.correctCount++;
+    } else {
+      ts.hearts--;
+      ts.misses.push(q);
+      // requeue this exact question later so it must be answered correctly
+      // before the piece can be marked mastered — same principle as the
+      // vocab game: a wrong guess costs a heart AND has to be corrected.
+      const insertAt = Math.min(ts.idx + 3 + Math.floor(Math.random() * 3), ts.questions.length);
+      ts.questions.splice(insertAt, 0, q);
+    }
+    showFeedback(q, correct);
+  }
+
+  function showFeedback(q, correct) {
+    const bar = document.createElement("div");
+    bar.className = "feedback-bar " + (correct ? "correct" : "wrong");
+    const text = document.createElement("div");
+    text.className = "feedback-text";
+    text.textContent = correct ? ["太棒了！", "背对了！", "厉害！", "完全正确！"][Math.floor(Math.random() * 4)] : "还没背准";
+    bar.appendChild(text);
+    if (!correct) {
+      const ans = document.createElement("div");
+      ans.className = "feedback-answer";
+      ans.textContent = "正确写法：" + q.answer;
+      bar.appendChild(ans);
+    }
+    const btn = document.createElement("button");
+    btn.className = "btn-primary";
+    btn.textContent = testState.hearts <= 0 ? "查看结果" : "继续";
+    btn.addEventListener("click", nextQuestion);
+    bar.appendChild(btn);
+    document.querySelector(".test-wrap").appendChild(bar);
+    setTimeout(() => btn.focus(), 10);
+  }
+
+  function nextQuestion() {
+    const ts = testState;
+    if (ts.hearts <= 0) { finishTest(false); return; }
+    ts.idx++;
+    ts.checked = false;
+    if (ts.idx >= ts.questions.length) { finishTest(true); return; }
+    render();
+  }
+
+  function finishTest(completed) {
+    const ts = testState;
+    const total = ts.correctCount + ts.misses.length;
+    let stars = 0;
+    if (completed) {
+      if (ts.hearts >= 5) stars = 3;
+      else if (ts.hearts >= 3) stars = 2;
+      else stars = 1;
+    }
+    const xpGain = ts.correctCount * 10 + (completed ? 30 : 0);
+    state.xp += xpGain;
+    state.studied[ts.piece.id] = true;
+    if (completed) {
+      const prev = state.mastered[ts.piece.id];
+      state.mastered[ts.piece.id] = { stars: Math.max(stars, prev ? prev.stars : 0) };
+    }
+    saveState();
+    ts.summary = { completed, total, correctCount: ts.correctCount, stars, xpGain, misses: ts.misses };
+    go("summary");
+  }
+
+  /* ---------------- SUMMARY ---------------- */
+  function renderSummary() {
+    app.innerHTML = "";
+    const s = testState.summary;
+    const piece = testState.piece;
+    const wrap = document.createElement("div");
+    wrap.className = "summary-wrap";
+    wrap.innerHTML =
+      '<div class="summary-emoji">' + (s.completed ? "🎉" : "💔") + '</div>' +
+      '<div class="summary-title">' + (s.completed ? "背诵过关！" : "还没完全背熟") + '</div>' +
+      '<div class="summary-sub">' + piece.id + '. ' + piece.title + '</div>' +
+      (s.completed ? '<div class="summary-stars">' + "★".repeat(s.stars) + "☆".repeat(3 - s.stars) + '</div>' : '');
+
+    const statsDiv = document.createElement("div");
+    statsDiv.className = "summary-stats";
+    statsDiv.innerHTML =
+      '<div class="summary-stat-card"><div class="num">' + s.correctCount + '/' + s.total + '</div><div class="label">答对题数</div></div>' +
+      '<div class="summary-stat-card"><div class="num">+' + s.xpGain + '</div><div class="label">获得经验</div></div>' +
+      '<div class="summary-stat-card"><div class="num">' + Math.round(s.correctCount / s.total * 100) + '%</div><div class="label">正确率</div></div>';
+    wrap.appendChild(statsDiv);
+
+    if (s.misses.length) {
+      const uniqueMisses = [];
+      const seen = new Set();
+      s.misses.forEach(m => { if (!seen.has(m.answer)) { seen.add(m.answer); uniqueMisses.push(m); } });
+      const missBox = document.createElement("div");
+      missBox.className = "miss-list";
+      missBox.innerHTML = "<h3>没背准的句子（" + uniqueMisses.length + "处）</h3>" +
+        uniqueMisses.map(m => '<div class="miss-item">' + m.answer + '</div>').join("");
+      wrap.appendChild(missBox);
+    }
+
+    const actions = document.createElement("div");
+    actions.className = "summary-actions";
+    const retryBtn = document.createElement("button");
+    retryBtn.className = "btn-primary";
+    retryBtn.textContent = "重新默写自测";
+    retryBtn.addEventListener("click", () => startTest(piece));
+    actions.appendChild(retryBtn);
+    const studyBtn = document.createElement("button");
+    studyBtn.className = "btn-secondary";
+    studyBtn.textContent = "📖 回看原文";
+    studyBtn.addEventListener("click", () => startStudy(piece));
+    actions.appendChild(studyBtn);
+    const mapBtn = document.createElement("button");
+    mapBtn.className = "btn-secondary";
+    mapBtn.textContent = "返回地图";
+    mapBtn.addEventListener("click", () => go("map"));
+    actions.appendChild(mapBtn);
+    wrap.appendChild(actions);
+    app.appendChild(wrap);
+  }
+
+  function render() {
+    if (screen === "map") renderMap();
+    else if (screen === "study") renderStudy();
+    else if (screen === "test") renderTest();
+    else if (screen === "summary") renderSummary();
+  }
+
+  render();
+})();
+</script>
+</body>
+</html>
